@@ -1,0 +1,41 @@
+import type { LabPrepGuide } from "@/lib/ai/types";
+
+export function guideToMarkdown(title: string, guide: LabPrepGuide) {
+  return [
+    `# ${title}`,
+    "",
+    "## What you are doing",
+    guide.experiment_goal,
+    "",
+    "## Explain like I know nothing",
+    guide.beginner_explanation,
+    "",
+    "## Key terms",
+    ...guide.key_terms.map((term) => `- **${term.term}:** ${term.simple_explanation}`),
+    "",
+    "## Step-by-step protocol",
+    ...guide.step_by_step_protocol.map((step) => `${step.step_number}. ${step.action}\n   - Note: ${step.beginner_note}\n   - Risk/common mistake: ${step.risk_or_common_mistake}`),
+    "",
+    "## Reagent and calculation checklist",
+    ...guide.reagent_calculation_checklist.map((item) => `- **${item.item}** (${item.status}): ${item.formula_or_reasoning}`),
+    "",
+    "## Missing info to confirm",
+    ...guide.missing_information.map((item) => `- **${item.missing_item}:** ${item.why_it_matters} Ask: ${item.suggested_question}`),
+    "",
+    "## Safety warnings",
+    ...guide.safety_warnings.map((item) => `- **${item.warning}:** ${item.why_it_matters} ${item.what_to_do}`),
+    "",
+    "## Questions to ask supervisor",
+    ...guide.questions_to_ask_supervisor.map((question) => `- ${question}`),
+    "",
+    "## Lab notebook draft",
+    guide.lab_notebook_draft,
+    "",
+    "## Assumptions made by AI",
+    ...guide.assumptions.map((assumption) => `- ${assumption}`),
+    "",
+    `## Confidence notes\n${guide.confidence_notes}`,
+    "",
+    "AI output is for preparation only. Follow supervisor instructions and institutional SOP."
+  ].join("\n");
+}

@@ -1,0 +1,39 @@
+{
+  "name": "bind-lab-ai",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0 -p 3003",
+    "build": "next build",
+    "typecheck": "tsc --noEmit",
+    "preview": "next start -H 127.0.0.1 -p 3003",
+    "check:server": "lsof -i :3003",
+    "stop:3003": "lsof -ti :3003 | xargs kill -9 || true",
+    "restart": "npm run stop:3003 && npm run dev",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:ai": "node scripts/test-ai.mjs"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@supabase/ssr": "^0.6.1",
+    "@supabase/supabase-js": "^2.45.4",
+    "lucide-react": "^0.468.0",
+    "next": "^15.0.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.15.0",
+    "eslint-config-next": "^15.0.3",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.5"
+  }
+}
