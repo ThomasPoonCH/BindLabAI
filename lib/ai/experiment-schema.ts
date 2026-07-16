@@ -40,7 +40,7 @@ export const experimentSchema = z.object({
   reagents: z.array(reagentSchema), conditions: conditionsSchema, workup: z.string().nullable(), purification: z.string().nullable(),
   analyticalMethods: z.array(z.string()), expectedProduct: z.string().nullable(), expectedMolecularWeight: z.number().positive().nullable(), notes: z.string().nullable(), safetyNotes: z.array(z.string()),
   missingInformation: z.array(z.string()), conflicts: z.array(z.string()), assumptions: z.array(z.string()), warnings: z.array(z.string()), aiSummary: z.string().nullable(),
-  productStoichiometry: z.number().positive().nullable().optional(), actualIsolatedMassMg: z.number().nonnegative().nullable().optional(), actualYieldPercent: z.number().min(0).max(100).nullable().optional(),
+  productStoichiometry: z.number().positive().nullable().optional(), expectedLcmsIons: z.array(z.string()).optional(), actualIsolatedMassMg: z.number().nonnegative().nullable().optional(), actualYieldPercent: z.number().min(0).max(100).nullable().optional(),
 });
 export type ExperimentRecord = z.infer<typeof experimentSchema>;
 export const experimentExtractionSchema = experimentSchema.omit({ experimentId: true, createdAt: true, updatedAt: true, originalInstruction: true });
