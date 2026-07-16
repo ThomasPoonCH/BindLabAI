@@ -13,8 +13,8 @@ export const reagentSchema = z.object({
   molecularWeight: z.number().positive().nullable(), molecularWeightUnit: z.literal("g/mol").default("g/mol"),
   mass: z.number().nonnegative().nullable(), massUnit: z.enum(["mg", "g"]).nullable(),
   amountMmol: z.number().nonnegative().nullable(), equivalents: z.number().nonnegative().nullable(),
-  density: z.number().positive().nullable(), densityUnit: z.literal("g/mL").default("g/mL"),
-  stockConcentration: z.number().positive().nullable(), stockConcentrationUnit: z.literal("M").default("M"),
+  density: z.number().positive().nullable(), densityUnit: z.enum(["g/mL", "mg/mL"]).default("g/mL"),
+  stockConcentration: z.number().positive().nullable(), stockConcentrationUnit: z.enum(["uM", "mM", "M"]).default("M"),
   volume: z.number().nonnegative().nullable(), volumeUnit: z.enum(["uL", "mL", "L"]).nullable(),
   isLimitingReagent: z.boolean().default(false), provenance: provenanceSchema,
   canonicalReagentId: z.string().nullable().optional(), canonicalName: z.string().nullable().optional(),
@@ -40,6 +40,7 @@ export const experimentSchema = z.object({
   reagents: z.array(reagentSchema), conditions: conditionsSchema, workup: z.string().nullable(), purification: z.string().nullable(),
   analyticalMethods: z.array(z.string()), expectedProduct: z.string().nullable(), expectedMolecularWeight: z.number().positive().nullable(), notes: z.string().nullable(), safetyNotes: z.array(z.string()),
   missingInformation: z.array(z.string()), conflicts: z.array(z.string()), assumptions: z.array(z.string()), warnings: z.array(z.string()), aiSummary: z.string().nullable(),
+  productStoichiometry: z.number().positive().nullable().optional(), actualIsolatedMassMg: z.number().nonnegative().nullable().optional(), actualYieldPercent: z.number().min(0).max(100).nullable().optional(),
 });
 export type ExperimentRecord = z.infer<typeof experimentSchema>;
 export const experimentExtractionSchema = experimentSchema.omit({ experimentId: true, createdAt: true, updatedAt: true, originalInstruction: true });
