@@ -20,6 +20,7 @@ export function applyVerifiedRecord(reagent: Reagent, reagentId: string): Reagen
 }
 
 export function resolveReagentProperties(reagent: Reagent): Reagent {
+  if (["bindlab_verified", "external_verified", "user_confirmed"].includes(reagent.propertyVerificationStatus ?? "")) return reagent;
   if (!reagent.name?.trim()) return { ...reagent, canonicalReagentId: null, canonicalName: null, propertyVerificationStatus: "unresolved" };
   const resolution = resolveVerifiedReagent(reagent.name);
   if (!resolution.record || resolution.requiresConfirmation) return { ...reagent, canonicalReagentId: null, canonicalName: null, propertyVerificationStatus: resolution.matchType === "suggested" ? "ai_suggested" : "unresolved" };
