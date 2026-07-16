@@ -17,6 +17,12 @@ export const reagentSchema = z.object({
   stockConcentration: z.number().positive().nullable(), stockConcentrationUnit: z.literal("M").default("M"),
   volume: z.number().nonnegative().nullable(), volumeUnit: z.enum(["uL", "mL", "L"]).nullable(),
   isLimitingReagent: z.boolean().default(false), provenance: provenanceSchema,
+  canonicalReagentId: z.string().nullable().optional(), canonicalName: z.string().nullable().optional(),
+  propertySource: z.string().nullable().optional(), propertyVerifiedAt: z.string().nullable().optional(),
+  propertyVerificationStatus: z.enum(["bindlab_verified", "user_confirmed", "external_verified", "ai_suggested", "unresolved"]).optional(),
+  inputValue: z.number().nonnegative().nullable().optional(),
+  inputUnit: z.enum(["ug", "mg", "g", "nmol", "umol", "mmol", "mol", "uL", "mL", "L"]).nullable().optional(),
+  purityPercent: z.number().positive().max(100).nullable().optional(),
 });
 
 export const conditionsSchema = z.object({
