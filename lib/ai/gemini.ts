@@ -1,8 +1,9 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getAiConfig } from "./config";
 import { AiServiceError, classifyProviderError } from "./service-error";
+import { verifiedModelOrder, clearModelHealthCache } from "./model-health";
 
-export type GeminiJsonOptions = { prompt: string; modelName?: string; temperature?: number };
+export type GeminiJsonOptions = { prompt: string; modelName?: string; temperature?: number; pdfData?: string };
 export type AiResponseMetadata = { requestedModel: string; successfulModel: string; fallbackUsed: boolean; attemptCount: number; preferredAttemptCount: number };
 export type GeminiGeneration = { text: string; metadata: AiResponseMetadata };
 type ModelRunner = (model: string) => Promise<string>;
@@ -29,16 +30,20 @@ export async function generateGeminiJson({ prompt, modelName, temperature = 0.25
   catch (error) { if (error instanceof AiServiceError) throw error; throw classifyProviderError(error); }
 }
 
-export async function generateExperimentDraftJson(prompt: string): Promise<GeminiGeneration> {
+export async function generateExperimentDraftJson(prompt: string, pdfData?: string): Promise<GeminiGeneration> {
   const config = getAiConfig();
-  const primaryModel = process.env.GEMINI_EXPERIMENT_MODEL?.trim() || config.fallbackModel;
-  const secondaryModel = config.model;
+  const verified = await verifiedModelOrder();
+  const primaryModel = verified[0];
+  const secondaryModel = verified[1];
+  if (!primaryModel) throw new AiServiceError("CONFIGURATION_ERROR", 503, "No configured Gemini model is currently available for this project.");
   const genAI = new GoogleGenerativeAI(config.apiKey);
   const run = async (selectedModel: string) => {
-    // Gemini's JSON MIME type gives us JSON without sending a large provider-side
-    // schema. The route validates the parsed result with Zod before returning it.
-    const model = genAI.getGenerativeModel({ model: selectedModel, generationConfig: { responseMimeType: "application/json", temperature: 0 } });
-    const result = await generationTimeout(model.generateContent(prompt), 30_000);
+    // Flash supports provider JSON mode; Gemma stays on plain text because its
+    // structured-output support is not reliable for this project.
+    const isGemma = selectedModel.toLowerCase().startsWith("gemma");
+    const model = genAI.getGenerativeModel({ model: selectedModel, generationConfig: isGemma ? { temperature: 0, maxOutputTokens: 2048 } : { responseMimeType: "application/json", temperature: 0, maxOutputTokens: 2048 } });
+    const contents = pdfData ? [{ text: prompt }, { inlineData: { mimeType: "application/pdf", data: pdfData } }] : prompt;
+    const result = await generationTimeout(model.generateContent(contents), 20_000);
     return result.response.text();
   };
   try { return { text: await run(primaryModel), metadata: { requestedModel: primaryModel, successfulModel: primaryModel, fallbackUsed: false, attemptCount: 1, preferredAttemptCount: 1 } }; }
@@ -47,6 +52,8 @@ export async function generateExperimentDraftJson(prompt: string): Promise<Gemin
     // configured secondary model, which keeps the Builder useful if Flash has
     // exhausted its own model-specific quota.
     if (!isTemporaryProviderError(primaryError) && !isRateLimited(primaryError)) throw classifyProviderError(primaryError);
+    if (!secondaryModel) throw classifyProviderError(primaryError);
+    if (/model not found/i.test(String(primaryError))) clearModelHealthCache();
     try { return { text: await run(secondaryModel), metadata: { requestedModel: primaryModel, successfulModel: secondaryModel, fallbackUsed: true, attemptCount: 2, preferredAttemptCount: 1 } }; }
     catch (secondaryError) { throw classifyProviderError(secondaryError); }
   }

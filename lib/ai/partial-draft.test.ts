@@ -20,6 +20,7 @@ describe("selectable PDF text fallback", () => {
     expect(experimentSchema.safeParse(draft).success).toBe(true);
     expect(draft.reagents.map((item) => item.name)).toEqual(expect.arrayContaining(["HATU", "DIPEA", "methylamine hydrochloride", "DMF", "12-COOH", "12-NHMe"]));
     expect(draft.reagents.find((item) => item.name === "12-COOH")).toMatchObject({ mass: 65, massUnit: "mg" });
+    expect(draft.reagents.find((item) => item.name === "HATU")).toMatchObject({ equivalents: 1.2, molecularWeight: null });
     expect(draft.reagents.every((item) => item.provenance.confirmedByUser === false)).toBe(true);
     expect(draft.warnings).toContain("The written PDF content was extracted successfully, but visual content has not yet been verified.");
   });
