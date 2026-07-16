@@ -9,9 +9,14 @@ const projectReagentSchema = z.object({
 export type ProjectReagent = z.infer<typeof projectReagentSchema>;
 const key = "bindlab-project-reagents-v1";
 
+export function parseProjectReagents(value: unknown): ProjectReagent[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap(item => { const parsed = projectReagentSchema.safeParse(item); return parsed.success ? [parsed.data] : []; });
+}
+
 export function listProjectReagents(): ProjectReagent[] {
   if (typeof window === "undefined") return [];
-  try { return z.array(projectReagentSchema).parse(JSON.parse(localStorage.getItem(key) ?? "[]")); } catch { return []; }
+  try { return parseProjectReagents(JSON.parse(localStorage.getItem(key) ?? "[]")); } catch { return []; }
 }
 
 export function saveProjectReagent(input: Omit<ProjectReagent, "id" | "createdAt" | "updatedAt" | "source">) {
