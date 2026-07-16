@@ -114,7 +114,8 @@ export function calculateReactionPlan(rows: CalculatorRow[], targetConcentration
   const errors: string[] = [];
   const warnings: string[] = [];
   const references = rows.filter((row) => row.isReference && row.role !== "product");
-  if (references.length !== 1) errors.push("Choose exactly one confirmed reference reagent.");
+  if (references.length === 0) errors.push("Choose one limiting reagent.");
+  if (references.length > 1) errors.push("Choose exactly one confirmed reference reagent.");
   const reference = references[0];
   const referenceErrors: string[] = [];
   const referenceAmountUmol = reference ? directAmount(reference, referenceErrors) : null;
@@ -131,11 +132,12 @@ export function calculateReactionPlan(rows: CalculatorRow[], targetConcentration
     if (row.density !== null && !positive(row.density)) rowErrors.push(`${row.name || "Reagent"}: density must be greater than zero.`);
     if (row.stockConcentration !== null && !positive(row.stockConcentration)) rowErrors.push(`${row.name || "Reagent"}: stock concentration must be greater than zero.`);
 
-    let amountUmol = row.isReference ? referenceAmountUmol : directAmount(row, rowErrors);
-    if (!row.isReference && amountUmol === null && referenceAmountUmol !== null && row.equivalents !== null) {
+    let amountUmol = row.isReference ? referenceAmountUmol : null;
+    if (!row.isReference && referenceAmountUmol !== null && row.equivalents !== null) {
       amountUmol = reagentAmount(referenceAmountUmol, row.equivalents);
       if (amountUmol !== null) explanations.push({ label: `${row.name}: required amount`, formula: "n reagent (umol) = n reference (umol) x equivalents", substituted: `${formatNumber(referenceAmountUmol)} umol x ${row.equivalents}`, result: `${formatNumber(amountUmol)} umol` });
     }
+    if (!row.isReference && amountUmol === null) amountUmol = directAmount(row, rowErrors);
     if (row.isReference && amountUmol !== null && row.inputValue !== null && row.inputUnit && ["ug", "mg", "g"].includes(row.inputUnit) && row.molecularWeight) {
       explanations.push({ label: `${row.name}: amount`, formula: "amount (umol) = mass (mg) / MW (g/mol) x 1000", substituted: `${formatNumber(massToMg(row.inputValue, row.inputUnit as MassUnit))} mg / ${row.molecularWeight} g/mol x 1000`, result: `${formatNumber(amountUmol)} umol` });
     }

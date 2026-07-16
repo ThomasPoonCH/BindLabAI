@@ -1,4 +1,5 @@
 import type { ExperimentRecord } from "./ai/experiment-schema";
+import { calculateExperiment } from "./chemistry/experiment-calculations";
 
 export type Conflict = { field: "title" | "objective" | "reactionType" | "solvent" | "targetConcentration"; current: string; incoming: string; reason: string };
 export type Resolution = "keep" | "ai" | "manual";
@@ -40,9 +41,7 @@ export function calculations(record: ExperimentRecord): Calculation[] {
   return result;
 }
 export function blockingReasons(record: ExperimentRecord) {
-  const reasons: string[] = []; const limiting = record.reagents.find(r => r.isLimitingReagent);
-  if (!limiting) reasons.push("Choose one limiting reagent.");
-  for (const r of record.reagents) { if ([r.mass, r.amountMmol, r.equivalents, r.density, r.stockConcentration, r.volume].some(v => v !== null && v !== undefined && v < 0)) reasons.push(`${r.name || "Reagent"}: numerical values cannot be negative.`); if (r.mass !== null && r.mass !== undefined && !r.molecularWeight) reasons.push(`${r.name || "Reagent"}: molecular weight is required for mass-to-mmol calculation.`); if (r.physicalState === "liquid" && r.mass && !r.density) reasons.push(`${r.name || "Liquid reagent"}: density is required for liquid mass-to-volume conversion.`); if (r.physicalState === "stock_solution" && r.amountMmol && !r.stockConcentration) reasons.push(`${r.name || "Stock reagent"}: stock concentration is required for stock-volume calculation.`); }
+  const reasons: string[] = [...calculateExperiment(record).errors];
   if (record.conflicts.length) reasons.push("Resolve all material AI conflicts."); if (record.assumptions.some(a => a.startsWith("UNCONFIRMED:"))) reasons.push("Confirm or reject all required AI assumptions.");
   const cap = record.conditions.vesselCapacity; if (cap && record.conditions.vesselCapacityUnit) { const needed = calculations(record).find(c => c.label === "Total reaction volume"); if (needed) { const volume = Number(needed.result.split(" ")[0]); if (Number.isFinite(volume) && volume > ml(cap, record.conditions.vesselCapacityUnit)) reasons.push("Calculated reaction volume exceeds the stated vessel capacity."); } }
   return [...new Set(reasons)];
