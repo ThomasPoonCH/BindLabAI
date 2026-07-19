@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { Calculator, ClipboardList, FlaskConical, LayoutDashboard, Microscope, Plus } from "lucide-react";
+import { Activity, Calculator, ClipboardList, FlaskConical, LayoutDashboard, Microscope, Plus } from "lucide-react";
 import { BindLabLogo } from "./BindLabLogo";
 
 const navItems = [
+  { href: "/dashboard/reaction/new", label: "New Reaction", icon: Plus },
   { href: "/", label: "Home", icon: FlaskConical },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/reaction/new", label: "New Reaction", icon: Plus },
+  { href: "/dashboard/bench-mode-demo", label: "Live Bench Demo", icon: Activity },
   { href: "/dashboard/calculators", label: "Calculators", icon: Calculator },
   { href: "/analysis", label: "Analysis Plans", icon: Microscope },
   { href: "/dashboard/experiments", label: "Experiments", icon: ClipboardList }

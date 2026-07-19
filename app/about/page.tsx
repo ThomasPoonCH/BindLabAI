@@ -8,7 +8,7 @@ export const metadata = {
 export default function AboutPage() {
   return (
     <main className="bg-paper text-ink">
-      <section className="relative h-[62vh] min-h-[520px] max-h-[680px] overflow-hidden">
+      <section className="relative h-[78vh] min-h-[520px] overflow-hidden md:h-[88vh] md:min-h-[680px] md:max-h-[920px]">
         <img
           src="/assets/sense-of-chemistry.png"
           alt="Hand-drawn molecular structure"
@@ -23,15 +23,15 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="bg-white px-4 pb-20 pt-24 sm:px-6 md:pb-28 md:pt-28">
+      <section className="bg-white px-4 pb-20 pt-3 sm:px-6 md:pb-28 md:pt-6">
         <div className="mx-auto max-w-7xl">
           <h2
             aria-hidden="true"
-            className="min-h-[clamp(42px,5.5vw,84px)] text-center text-[clamp(42px,5.5vw,84px)] font-normal leading-[0.98] tracking-normal text-ink"
+            className="min-h-[12px] text-center text-[clamp(42px,5.5vw,84px)] font-normal leading-[0.98] tracking-normal text-ink md:min-h-[16px]"
             style={{ fontFamily: '"Didot", "Bodoni 72", "Bodoni 72 Display", Georgia, serif' }}
           />
 
-          <div className="relative mx-auto mt-16 max-w-[1220px] border border-[#c5a46d]/35 bg-white px-7 py-14 sm:px-12 md:mt-20 md:min-h-[620px] md:px-16 md:py-16">
+          <div className="relative mx-auto mt-3 max-w-[1220px] border border-[#c5a46d]/35 bg-white px-7 py-14 sm:px-12 md:mt-5 md:min-h-[620px] md:px-16 md:py-16">
             <div className="pointer-events-none absolute -inset-3 -z-0 border border-[#c5a46d]/20" />
             <div className="pointer-events-none absolute -inset-x-6 -inset-y-2 -z-0 border border-[#c5a46d]/15" />
           <div className="relative z-10 mx-auto grid max-w-[1060px] gap-12 md:grid-cols-[0.38fr_0.62fr] md:items-center md:gap-[clamp(70px,8vw,100px)]">

@@ -2,9 +2,15 @@ import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { createServiceSupabaseClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured, listLocalProjects } from "@/lib/storage";
-import { ArrowRight, Calculator, ClipboardCheck, FlaskConical, Microscope, Plus } from "lucide-react";
+import { Activity, ArrowRight, Calculator, ClipboardCheck, FlaskConical, Microscope, Plus } from "lucide-react";
 
 const workflowCards = [
+  {
+    title: "Live Bench Mode Demo",
+    copy: "Run a fictional reaction step by step, record deviations, recalculate the live plan, and simulate an analytical decision.",
+    href: "/dashboard/bench-mode-demo",
+    icon: Activity
+  },
   {
     title: "1. Reaction setup",
     copy: "Capture limiting reagent, equivalents, MW, solvent, concentration, temperature, and atmosphere.",

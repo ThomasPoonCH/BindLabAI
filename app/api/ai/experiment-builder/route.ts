@@ -22,7 +22,7 @@ function extractJson(text: string) {
   }
   throw new AiServiceError("JSON_PARSE_ERROR", 502, "The AI returned invalid JSON. No experiment was saved.");
 }
-function emptyExtraction() { return { title: null, objective: null, reactionType: null, experimentStatus: "needs_review" as const, reagents: [], conditions: { solvent: null, solventVolume: null, solventVolumeUnit: "mL" as const, targetConcentration: null, targetConcentrationUnit: "M" as const, temperature: null, temperatureUnit: "C" as const, duration: null, durationUnit: "h" as const, atmosphere: null, vessel: null, vesselCapacity: null, vesselCapacityUnit: "mL" as const, mixingMethod: null, orderOfAddition: [], provenance: importedProvenance() }, workup: null, purification: null, analyticalMethods: [], expectedProduct: null, expectedMolecularWeight: null, notes: null, safetyNotes: [], missingInformation: [], conflicts: [], assumptions: [], warnings: [], aiSummary: null }; }
+function emptyExtraction() { return { title: null, objective: null, reactionType: null, experimentStatus: "needs_review" as const, reagents: [], conditions: { solvent: null, solventVolume: null, solventVolumeUnit: "mL" as const, targetConcentration: null, targetConcentrationUnit: "M" as const, concentrationBasisReagentId: null, temperature: null, temperatureUnit: "C" as const, duration: null, durationUnit: "h" as const, atmosphere: null, vessel: null, vesselCapacity: null, vesselCapacityUnit: "mL" as const, mixingMethod: null, orderOfAddition: [], provenance: importedProvenance() }, workup: null, purification: null, analyticalMethods: [], expectedProduct: null, expectedMolecularWeight: null, notes: null, safetyNotes: [], missingInformation: [], conflicts: [], assumptions: [], warnings: [], aiSummary: null }; }
 const numberOrNull = (value: unknown) => { if (value === null || value === undefined || value === "") return null; const parsed = typeof value === "number" ? value : Number(value); return Number.isFinite(parsed) ? parsed : null; };
 const textOrNull = (value: unknown) => typeof value === "string" && value.trim() ? value.trim() : null;
 const stringList = (value: unknown) => Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").map(item => item.trim()).filter(Boolean) : [];
@@ -34,7 +34,7 @@ function normalizeReagent(reagent: Record<string, unknown>) {
   const state = typeof fields.physicalState === "string" ? physicalAliases[fields.physicalState.toLowerCase()] ?? "unknown" : "unknown";
   return { id: typeof fields.id === "string" ? fields.id : randomUUID(), name: textOrNull(fields.name), role: textOrNull(fields.role), physicalState: state, molecularWeight: numberOrNull(fields.molecularWeight ?? fields.mw), molecularWeightUnit: "g/mol" as const, mass: numberOrNull(fields.mass), massUnit: fields.massUnit === "g" ? "g" as const : fields.massUnit === "mg" ? "mg" as const : null, amountMmol: numberOrNull(fields.amountMmol ?? fields.mmol), equivalents: numberOrNull(fields.equivalents ?? fields.eq), density: numberOrNull(fields.density), densityUnit: "g/mL" as const, stockConcentration: numberOrNull(fields.stockConcentration), stockConcentrationUnit: "M" as const, volume: numberOrNull(fields.volume), volumeUnit: ["uL", "mL", "L"].includes(String(fields.volumeUnit)) ? fields.volumeUnit as "uL" | "mL" | "L" : null, isLimitingReagent: fields.isLimitingReagent === true, provenance: normalizeProvenance(fields.provenance) };
 }
-function normalizeConditions(value: unknown) { const raw = value && typeof value === "object" ? value as Record<string, unknown> : {}; return { solvent: textOrNull(raw.solvent), solventVolume: numberOrNull(raw.solventVolume), solventVolumeUnit: ["uL", "mL", "L"].includes(String(raw.solventVolumeUnit)) ? raw.solventVolumeUnit as "uL" | "mL" | "L" : "mL" as const, targetConcentration: numberOrNull(raw.targetConcentration), targetConcentrationUnit: ["M", "mM", "uM"].includes(String(raw.targetConcentrationUnit)) ? raw.targetConcentrationUnit as "M" | "mM" | "uM" : "M" as const, temperature: textOrNull(raw.temperature), temperatureUnit: raw.temperatureUnit === "K" ? "K" as const : "C" as const, duration: textOrNull(raw.duration), durationUnit: ["min", "h", "d"].includes(String(raw.durationUnit)) ? raw.durationUnit as "min" | "h" | "d" : "h" as const, atmosphere: textOrNull(raw.atmosphere), vessel: textOrNull(raw.vessel), vesselCapacity: numberOrNull(raw.vesselCapacity), vesselCapacityUnit: ["uL", "mL", "L"].includes(String(raw.vesselCapacityUnit)) ? raw.vesselCapacityUnit as "uL" | "mL" | "L" : "mL" as const, mixingMethod: textOrNull(raw.mixingMethod), orderOfAddition: stringList(raw.orderOfAddition), provenance: normalizeProvenance(raw.provenance) }; }
+function normalizeConditions(value: unknown) { const raw = value && typeof value === "object" ? value as Record<string, unknown> : {}; return { solvent: textOrNull(raw.solvent), solventVolume: numberOrNull(raw.solventVolume), solventVolumeUnit: ["uL", "mL", "L"].includes(String(raw.solventVolumeUnit)) ? raw.solventVolumeUnit as "uL" | "mL" | "L" : "mL" as const, targetConcentration: numberOrNull(raw.targetConcentration), targetConcentrationUnit: ["M", "mM", "uM"].includes(String(raw.targetConcentrationUnit)) ? raw.targetConcentrationUnit as "M" | "mM" | "uM" : "M" as const, concentrationBasisReagentId: textOrNull(raw.concentrationBasisReagentId), temperature: textOrNull(raw.temperature), temperatureUnit: raw.temperatureUnit === "K" ? "K" as const : "C" as const, duration: textOrNull(raw.duration), durationUnit: ["min", "h", "d"].includes(String(raw.durationUnit)) ? raw.durationUnit as "min" | "h" | "d" : "h" as const, atmosphere: textOrNull(raw.atmosphere), vessel: textOrNull(raw.vessel), vesselCapacity: numberOrNull(raw.vesselCapacity), vesselCapacityUnit: ["uL", "mL", "L"].includes(String(raw.vesselCapacityUnit)) ? raw.vesselCapacityUnit as "uL" | "mL" | "L" : "mL" as const, mixingMethod: textOrNull(raw.mixingMethod), orderOfAddition: stringList(raw.orderOfAddition), provenance: normalizeProvenance(raw.provenance) }; }
 function normalizeExtraction(rawInput: Record<string, unknown>) {
   const wrapper = rawInput.draft ?? rawInput.experiment ?? rawInput.result ?? rawInput.data;
   const raw = wrapper && typeof wrapper === "object" ? wrapper as Record<string, unknown> : rawInput;
@@ -74,7 +74,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, draft: buildDraft(generation.text, instruction), requestId, metadata: generation.metadata });
     } catch (visualError) {
       const classified = visualError instanceof AiServiceError ? visualError : new AiServiceError("UNKNOWN_ERROR", 502, "The AI provider returned an unusable response.");
-      if (!pdfData || !["TIMEOUT", "NETWORK_ERROR"].includes(classified.code)) throw visualError;
+      const canReturnValidatedFallback = !["CONFIGURATION_ERROR", "AUTHENTICATION_FAILED"].includes(classified.code);
+      if (!canReturnValidatedFallback) throw classified;
+      if (!pdfData) {
+        const partialDraft = buildDeterministicTextDraft(instruction);
+        return NextResponse.json({
+          ok: false,
+          code: "AI_EXTRACTION_FALLBACK",
+          message: "AI extraction did not complete. A validated text draft is ready for review.",
+          requestId,
+          retryable: true,
+          error: {
+            code: "AI_EXTRACTION_FALLBACK",
+            message: "AI extraction did not complete. A validated text draft is ready for review.",
+            requestId,
+            retryable: true,
+          },
+          partialDraft,
+          completedStages: ["text_evidence_extraction", "experiment_mapping", "schema_validation"],
+          failedStage: "ai_extraction",
+        }, { status: 206 });
+      }
+      console.warn("BindLab PDF visual analysis did not complete; using the validated text path.", {
+        requestId,
+        code: classified.code,
+      });
       const textPrompt = `Use only the selectable PDF text below. Return exactly one compact JSON object with documentTitle, objective, reagents, conditions, procedureSteps, workupSteps, purificationSteps, analysisSteps, visualFindings, missingInformation and warnings. Preserve page references when stated. Never invent chemistry values. Text: ${instruction}`;
       try {
         const textGeneration = await generateExperimentDraftJson(textPrompt);
@@ -88,6 +112,10 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof AiServiceError) return errorResponse(error, requestId);
     if (error instanceof z.ZodError) return errorResponse(new AiServiceError("INVALID_AI_OUTPUT", 400, "Enter an experiment description between 10 and 12,000 characters."), requestId);
+    console.error("BindLab AI request failed before classification", {
+      requestId,
+      errorType: error instanceof Error ? error.name : typeof error,
+    });
     return errorResponse(new AiServiceError("UNKNOWN_ERROR", 500, "The AI request failed. Use the request ID to inspect the server log."), requestId);
   }
 }

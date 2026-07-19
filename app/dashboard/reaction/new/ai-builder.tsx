@@ -22,6 +22,7 @@ const messages: Record<string, string> = {
   PDF_NO_TEXT: "BindLab could not read this PDF.",
   PDF_READ_ERROR: "BindLab could not read this PDF. Try an accessible PDF.",
   VISUAL_ANALYSIS_TIMEOUT: "The written PDF content was extracted successfully, but visual content has not yet been verified.",
+  AI_EXTRACTION_FALLBACK: "AI extraction did not complete, so BindLab prepared a validated text draft for review.",
 };
 
 export function AiBuilder({ onApplyDraft }: { onApplyDraft: (draft: ExperimentRecord) => void }) {
@@ -86,7 +87,7 @@ export function AiBuilder({ onApplyDraft }: { onApplyDraft: (draft: ExperimentRe
         setError(result.error);
         return;
       }
-      setRecord((current) => isVisualPartial && current ? mergeVisualRetryDraft(current, result.draft) : result.draft);
+      setRecord((current) => isPartialDraft && current ? mergeVisualRetryDraft(current, result.draft) : result.draft);
       setConfirmed(false);
       setError(result.warning);
     } catch {
@@ -96,7 +97,7 @@ export function AiBuilder({ onApplyDraft }: { onApplyDraft: (draft: ExperimentRe
     }
   }
 
-  const isVisualPartial = error?.code === "VISUAL_ANALYSIS_TIMEOUT" && Boolean(record);
+  const isPartialDraft = ["VISUAL_ANALYSIS_TIMEOUT", "AI_EXTRACTION_FALLBACK"].includes(error?.code ?? "") && Boolean(record);
   const errorMessage = error ? messages[error.code ?? "UNKNOWN_ERROR"] ?? messages.UNKNOWN_ERROR : "";
 
   return (
@@ -132,13 +133,13 @@ export function AiBuilder({ onApplyDraft }: { onApplyDraft: (draft: ExperimentRe
         </button>
         {error && (
           <button onClick={generate} disabled={loading} className="inline-flex items-center gap-2 rounded-md border border-ink/20 px-3 py-2 text-sm font-semibold disabled:opacity-50">
-            <RotateCcw size={15} /> {isVisualPartial ? "Retry Visual Analysis" : "Retry"}
+            <RotateCcw size={15} /> {error?.code === "VISUAL_ANALYSIS_TIMEOUT" ? "Retry Visual Analysis" : "Retry"}
           </button>
         )}
       </div>
 
       {error && (
-        <div className={`mt-4 rounded-md border p-3 text-sm ${isVisualPartial ? "border-amber-200 bg-amber-50 text-amber-900" : "border-red-200 bg-red-50 text-red-800"}`}>
+        <div className={`mt-4 rounded-md border p-3 text-sm ${isPartialDraft ? "border-amber-200 bg-amber-50 text-amber-900" : "border-red-200 bg-red-50 text-red-800"}`}>
           <div className="flex gap-2"><AlertTriangle size={17} /><p>{errorMessage}</p></div>
           {error.requestId && <p className="mt-2 pl-6 text-xs opacity-75">Request ID: {error.requestId}</p>}
         </div>

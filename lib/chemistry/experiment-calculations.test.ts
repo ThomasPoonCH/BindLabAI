@@ -26,4 +26,35 @@ describe("experiment calculation presentation", () => {
     const confirmed = record(); confirmed.productStoichiometry = 1;
     expect(theoreticalProduct(confirmed)?.amountUmol).toBeCloseTo(100, 8);
   });
+  it("keeps imported evidence but derives the planned amount from equivalents", () => {
+    const imported = record();
+    imported.reagents[1] = {
+      ...imported.reagents[1],
+      physicalState: "solid",
+      molecularWeight: 50,
+      equivalents: 0.5,
+      mass: 999,
+      massUnit: "mg",
+      inputValue: 999,
+      inputUnit: "mg",
+      provenance: { ...provenance, sourceType: "imported_from_document" },
+    };
+    const calculated = calculateExperiment(imported).rows.find(row => row.id === "liquid");
+    expect(imported.reagents[1].mass).toBe(999);
+    expect(calculated?.amountUmol).toBeCloseTo(50, 8);
+    expect(calculated?.theoreticalMassMg).toBeCloseTo(2.5, 8);
+  });
+  it("uses the displayed mass unit when an edited reference value has no stored input unit", () => {
+    const edited = record();
+    edited.reagents[0] = {
+      ...edited.reagents[0],
+      inputValue: 70,
+      inputUnit: null,
+      massUnit: "mg",
+      molecularWeight: 411.457,
+    };
+    const plan = calculateExperiment(edited);
+    expect(plan.referenceAmountUmol).toBeCloseTo(170.127134, 6);
+    expect(plan.rows.find(row => row.id === "liquid")?.amountUmol).toBeCloseTo(340.254267, 6);
+  });
 });

@@ -28,6 +28,7 @@ export const reagentSchema = z.object({
 export const conditionsSchema = z.object({
   solvent: z.string().nullable(), solventVolume: z.number().positive().nullable(), solventVolumeUnit: z.enum(["uL", "mL", "L"]).default("mL"),
   targetConcentration: z.number().positive().nullable(), targetConcentrationUnit: z.enum(["M", "mM", "uM"]).default("M"),
+  concentrationBasisReagentId: z.string().nullable().optional(),
   temperature: z.string().nullable(), temperatureUnit: z.enum(["C", "K"]).default("C"),
   duration: z.string().nullable(), durationUnit: z.enum(["min", "h", "d"]).default("h"),
   atmosphere: z.string().nullable(), vessel: z.string().nullable(), vesselCapacity: z.number().positive().nullable(), vesselCapacityUnit: z.enum(["uL", "mL", "L"]).default("mL"),

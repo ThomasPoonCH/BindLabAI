@@ -26,6 +26,7 @@ export type CalculatorRow = {
 export type Explanation = { label: string; formula: string; substituted: string; result: string };
 export type CalculatedRow = CalculatorRow & {
   amountUmol: number | null;
+  actualConcentrationM: number | null;
   theoreticalMassMg: number | null;
   correctedMassMg: number | null;
   liquidVolumeUl: number | null;
@@ -37,6 +38,8 @@ export type CalculatedRow = CalculatorRow & {
 
 export type ReactionPlan = {
   referenceAmountUmol: number | null;
+  concentrationBasisReagentId: string | null;
+  concentrationBasisName: string | null;
   totalVolumeMl: number | null;
   actualConcentrationM: number | null;
   rows: CalculatedRow[];
@@ -110,7 +113,7 @@ function directAmount(row: CalculatorRow, errors: string[]) {
   return null;
 }
 
-export function calculateReactionPlan(rows: CalculatorRow[], targetConcentration: number | null, targetUnit: ConcentrationUnit): ReactionPlan {
+export function calculateReactionPlan(rows: CalculatorRow[], targetConcentration: number | null, targetUnit: ConcentrationUnit, concentrationBasisReagentId: string | null = null): ReactionPlan {
   const errors: string[] = [];
   const warnings: string[] = [];
   const references = rows.filter((row) => row.isReference && row.role !== "product");
@@ -133,11 +136,14 @@ export function calculateReactionPlan(rows: CalculatorRow[], targetConcentration
     if (row.stockConcentration !== null && !positive(row.stockConcentration)) rowErrors.push(`${row.name || "Reagent"}: stock concentration must be greater than zero.`);
 
     let amountUmol = row.isReference ? referenceAmountUmol : null;
-    if (!row.isReference && referenceAmountUmol !== null && row.equivalents !== null) {
-      amountUmol = reagentAmount(referenceAmountUmol, row.equivalents);
-      if (amountUmol !== null) explanations.push({ label: `${row.name}: required amount`, formula: "n reagent (umol) = n reference (umol) x equivalents", substituted: `${formatNumber(referenceAmountUmol)} umol x ${row.equivalents}`, result: `${formatNumber(amountUmol)} umol` });
+    if (!row.isReference) {
+      if (row.equivalents === null) {
+        rowErrors.push(`${row.name || "Reagent"}: enter equivalents to calculate the required amount from the reference reagent.`);
+      } else if (referenceAmountUmol !== null) {
+        amountUmol = reagentAmount(referenceAmountUmol, row.equivalents);
+        if (amountUmol !== null) explanations.push({ label: `${row.name}: required amount`, formula: "n reagent (umol) = n reference (umol) x equivalents", substituted: `${formatNumber(referenceAmountUmol)} umol x ${row.equivalents}`, result: `${formatNumber(amountUmol)} umol` });
+      }
     }
-    if (!row.isReference && amountUmol === null) amountUmol = directAmount(row, rowErrors);
     if (row.isReference && amountUmol !== null && row.inputValue !== null && row.inputUnit && ["ug", "mg", "g"].includes(row.inputUnit) && row.molecularWeight) {
       explanations.push({ label: `${row.name}: amount`, formula: "amount (umol) = mass (mg) / MW (g/mol) x 1000", substituted: `${formatNumber(massToMg(row.inputValue, row.inputUnit as MassUnit))} mg / ${row.molecularWeight} g/mol x 1000`, result: `${formatNumber(amountUmol)} umol` });
     }
@@ -155,13 +161,22 @@ export function calculateReactionPlan(rows: CalculatorRow[], targetConcentration
     if (amountUmol !== null && amountUmol < 0.1) rowWarnings.push(`${row.name}: calculated amount is below 0.1 umol; confirm practical handling.`);
     if (liquidVolumeUl !== null && liquidVolumeUl < 1) rowWarnings.push(`${row.name}: calculated volume is below 1 uL; consider an intermediate stock.`);
     errors.push(...rowErrors); warnings.push(...rowWarnings);
-    return { ...row, amountUmol, theoreticalMassMg, correctedMassMg, liquidVolumeUl, stockVolumeUl: stockVolume, errors: unique(rowErrors), warnings: unique(rowWarnings), explanations };
+    return { ...row, amountUmol, actualConcentrationM: null, theoreticalMassMg, correctedMassMg, liquidVolumeUl, stockVolumeUl: stockVolume, errors: unique(rowErrors), warnings: unique(rowWarnings), explanations };
   });
 
   const concentrationM = targetConcentration !== null ? concentrationToM(targetConcentration, targetUnit) : null;
   if (targetConcentration !== null && !positive(concentrationM)) errors.push("Target concentration must be greater than zero.");
-  const totalVolumeMl = referenceAmountUmol !== null && concentrationM !== null ? solventVolumeMl(referenceAmountUmol, concentrationM) : null;
-  const actual = referenceAmountUmol !== null && totalVolumeMl !== null ? actualConcentrationM(referenceAmountUmol, totalVolumeMl) : null;
-  const solventExplanation = totalVolumeMl !== null ? { label: "Total reaction volume", formula: "volume (mL) = reference amount (umol) / [target concentration (M) x 1000]", substituted: `${formatNumber(referenceAmountUmol!)} umol / [${formatNumber(concentrationM!)} M x 1000]`, result: `${formatNumber(totalVolumeMl)} mL` } : null;
-  return { referenceAmountUmol, totalVolumeMl, actualConcentrationM: actual, rows: calculatedRows, errors: unique(errors), warnings: unique(warnings), solventExplanation };
+  const requestedBasis = concentrationBasisReagentId ? calculatedRows.find(row => row.id === concentrationBasisReagentId) : null;
+  const referenceBasis = calculatedRows.find(row => row.isReference) ?? null;
+  const concentrationBasis = requestedBasis ?? referenceBasis;
+  if (concentrationBasisReagentId && !requestedBasis) warnings.push("The selected concentration-basis reagent is unavailable; the reference reagent is being used.");
+  const basisAmountUmol = concentrationBasis?.amountUmol ?? null;
+  const totalVolumeMl = basisAmountUmol !== null && concentrationM !== null ? solventVolumeMl(basisAmountUmol, concentrationM) : null;
+  const actual = basisAmountUmol !== null && totalVolumeMl !== null ? actualConcentrationM(basisAmountUmol, totalVolumeMl) : null;
+  const rowsWithConcentrations = calculatedRows.map(row => ({
+    ...row,
+    actualConcentrationM: row.amountUmol !== null && totalVolumeMl !== null ? actualConcentrationM(row.amountUmol, totalVolumeMl) : null,
+  }));
+  const solventExplanation = totalVolumeMl !== null ? { label: "Total reaction volume", formula: "volume (mL) = selected reagent amount (umol) / [target concentration (M) x 1000]", substituted: `${concentrationBasis?.name || "Selected reagent"}: ${formatNumber(basisAmountUmol!)} umol / [${formatNumber(concentrationM!)} M x 1000]`, result: `${formatNumber(totalVolumeMl)} mL` } : null;
+  return { referenceAmountUmol, concentrationBasisReagentId: concentrationBasis?.id ?? null, concentrationBasisName: concentrationBasis?.name ?? null, totalVolumeMl, actualConcentrationM: actual, rows: rowsWithConcentrations, errors: unique(errors), warnings: unique(warnings), solventExplanation };
 }

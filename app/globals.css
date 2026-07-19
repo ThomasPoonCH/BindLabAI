@@ -38,6 +38,86 @@ button, input, textarea, select {
   background-size: 36px 36px;
 }
 
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 900ms ease, transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.float-slow { animation: float-slow 7s ease-in-out infinite; }
+
+.home-orbit::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #a65f3d;
+  box-shadow: 0 0 0 8px rgba(166, 95, 61, 0.08);
+  left: 50%;
+  top: -5px;
+}
+
+.home-orbit-outer { animation: home-orbit 28s linear infinite; }
+.home-orbit-inner { animation: home-orbit 22s linear infinite reverse; }
+
+.home-state-row {
+  animation: home-state-pulse 4.2s ease-in-out infinite;
+}
+
+.home-state-dot {
+  box-shadow: 0 0 0 0 rgba(166, 95, 61, 0.22);
+  animation: home-dot-pulse 2.8s ease-out infinite;
+}
+
+.home-memory-track {
+  animation: home-memory-scroll 28s linear infinite;
+}
+
+.shine-line {
+  background: linear-gradient(90deg, transparent, rgba(166, 95, 61, 0.7), transparent);
+  background-size: 200% 100%;
+  animation: shine-line 5s ease-in-out infinite;
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes shine-line {
+  0%, 100% { background-position: 100% 0; }
+  50% { background-position: 0 0; }
+}
+
+@keyframes home-orbit {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes home-state-pulse {
+  0%, 76%, 100% { border-color: rgba(23, 32, 27, 0.10); transform: translateX(0); }
+  86% { border-color: rgba(166, 95, 61, 0.28); transform: translateX(4px); }
+}
+
+@keyframes home-dot-pulse {
+  0%, 60%, 100% { box-shadow: 0 0 0 0 rgba(166, 95, 61, 0.22); }
+  80% { box-shadow: 0 0 0 7px rgba(166, 95, 61, 0); }
+}
+
+@keyframes home-memory-scroll {
+  to { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .float-slow, .shine-line, .home-orbit-outer, .home-orbit-inner, .home-state-row, .home-state-dot, .home-memory-track { animation: none; }
+}
+
 .biography-paragraph {
   text-align: justify;
   text-justify: inter-word;

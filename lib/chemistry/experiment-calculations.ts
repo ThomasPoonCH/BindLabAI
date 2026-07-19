@@ -10,6 +10,12 @@ export function recordToCalculatorRows(record: ExperimentRecord): CalculatorRow[
       else if (reagent.amountMmol !== null) { inputValue = reagent.amountMmol; inputUnit = "mmol"; }
       else if (reagent.volume !== null && reagent.volumeUnit) { inputValue = reagent.volume; inputUnit = reagent.volumeUnit; }
     }
+    if (reagent.isLimitingReagent && inputValue !== null && inputUnit === null) {
+      if (reagent.massUnit) inputUnit = reagent.massUnit;
+      else if (reagent.amountMmol !== null) inputUnit = "mmol";
+      else if (reagent.volumeUnit) inputUnit = reagent.volumeUnit;
+      else inputUnit = "mg";
+    }
     return {
       id: reagent.id,
       name: reagent.name ?? "Unnamed reagent",
@@ -30,7 +36,7 @@ export function recordToCalculatorRows(record: ExperimentRecord): CalculatorRow[
 }
 
 export function calculateExperiment(record: ExperimentRecord) {
-  return calculateReactionPlan(recordToCalculatorRows(record), record.conditions.targetConcentration, record.conditions.targetConcentrationUnit);
+  return calculateReactionPlan(recordToCalculatorRows(record), record.conditions.targetConcentration, record.conditions.targetConcentrationUnit, record.conditions.concentrationBasisReagentId ?? null);
 }
 
 export function theoreticalProduct(record: ExperimentRecord) {

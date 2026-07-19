@@ -1,7 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getAiConfig } from "./config";
 import { AiServiceError, classifyProviderError } from "./service-error";
-import { verifiedModelOrder, clearModelHealthCache } from "./model-health";
 
 export type GeminiJsonOptions = { prompt: string; modelName?: string; temperature?: number; pdfData?: string };
 export type AiResponseMetadata = { requestedModel: string; successfulModel: string; fallbackUsed: boolean; attemptCount: number; preferredAttemptCount: number };
@@ -16,6 +15,15 @@ export function isTemporaryProviderError(error: unknown) { const message = error
 function isRateLimited(error: unknown) { const message = error instanceof Error ? error.message : String(error); return /\b429\b/.test(message) || /resource exhausted|rate limit|quota/i.test(message); }
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const generationTimeout = <T,>(promise: Promise<T>, ms = 15_000) => Promise.race<T>([promise, new Promise<T>((_, reject) => setTimeout(() => reject(new Error("504 Gateway Timeout")), ms))]);
+function hasParseableJson(text: string) {
+  const cleaned = text.trim().replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/, "");
+  const firstObject = cleaned.indexOf("{");
+  const lastObject = cleaned.lastIndexOf("}");
+  const candidates = [cleaned, firstObject >= 0 && lastObject > firstObject ? cleaned.slice(firstObject, lastObject + 1) : ""].filter(Boolean);
+  return candidates.some(candidate => {
+    try { JSON.parse(candidate); return true; } catch { return false; }
+  });
+}
 
 export async function runWithModelFallback(run: ModelRunner, requestedModel: string, fallbackModel: string, sleep = delay): Promise<GeminiGeneration> {
   let preferredAttempts = 0;
@@ -32,28 +40,38 @@ export async function generateGeminiJson({ prompt, modelName, temperature = 0.25
 
 export async function generateExperimentDraftJson(prompt: string, pdfData?: string): Promise<GeminiGeneration> {
   const config = getAiConfig();
-  const verified = await verifiedModelOrder();
-  const primaryModel = verified[0];
-  const secondaryModel = verified[1];
-  if (!primaryModel) throw new AiServiceError("CONFIGURATION_ERROR", 503, "No configured Gemini model is currently available for this project.");
+  // Structured extraction goes straight to the JSON-capable Flash model.
+  // The general Gemini route may still use the preferred Gemma model.
+  const candidates = [...new Set([process.env.GEMINI_FAST_MODEL?.trim(), "gemini-flash-latest", config.fallbackModel, config.model].filter((model): model is string => Boolean(model)))];
+  const primaryModel = candidates[0];
+  const secondaryModel = candidates.find(model => model !== primaryModel);
+  if (!primaryModel) throw new AiServiceError("CONFIGURATION_ERROR", 503, "No Gemini model is configured for this project.");
   const genAI = new GoogleGenerativeAI(config.apiKey);
   const run = async (selectedModel: string) => {
-    // Flash supports provider JSON mode; Gemma stays on plain text because its
-    // structured-output support is not reliable for this project.
+    // JSON MIME mode is reliable for Flash, while the provider response-schema
+    // option can produce malformed output for this compact chemistry shape.
+    // The parsed result is still strictly validated with Zod in the API route.
     const isGemma = selectedModel.toLowerCase().startsWith("gemma");
-    const model = genAI.getGenerativeModel({ model: selectedModel, generationConfig: isGemma ? { temperature: 0, maxOutputTokens: 2048 } : { responseMimeType: "application/json", temperature: 0, maxOutputTokens: 2048 } });
+    const model = genAI.getGenerativeModel({
+      model: selectedModel,
+      generationConfig: isGemma
+        ? { temperature: 0, maxOutputTokens: 8192 }
+        : { responseMimeType: "application/json", temperature: 0, maxOutputTokens: 8192 },
+    });
     const contents = pdfData ? [{ text: prompt }, { inlineData: { mimeType: "application/pdf", data: pdfData } }] : prompt;
-    const result = await generationTimeout(model.generateContent(contents), 20_000);
-    return result.response.text();
+    const result = await generationTimeout(model.generateContent(contents), 15_000);
+    const text = result.response.text();
+    if (!hasParseableJson(text)) throw new AiServiceError("JSON_PARSE_ERROR", 502, "The AI returned invalid JSON. No experiment was saved.");
+    return text;
   };
   try { return { text: await run(primaryModel), metadata: { requestedModel: primaryModel, successfulModel: primaryModel, fallbackUsed: false, attemptCount: 1, preferredAttemptCount: 1 } }; }
   catch (primaryError) {
     // Rate limits are not retried. We may still make one fresh request to the
     // configured secondary model, which keeps the Builder useful if Flash has
     // exhausted its own model-specific quota.
-    if (!isTemporaryProviderError(primaryError) && !isRateLimited(primaryError)) throw classifyProviderError(primaryError);
+    const invalidOutput = primaryError instanceof AiServiceError && primaryError.code === "JSON_PARSE_ERROR";
+    if (!isTemporaryProviderError(primaryError) && !isRateLimited(primaryError) && !invalidOutput) throw classifyProviderError(primaryError);
     if (!secondaryModel) throw classifyProviderError(primaryError);
-    if (/model not found/i.test(String(primaryError))) clearModelHealthCache();
     try { return { text: await run(secondaryModel), metadata: { requestedModel: primaryModel, successfulModel: secondaryModel, fallbackUsed: true, attemptCount: 2, preferredAttemptCount: 1 } }; }
     catch (secondaryError) { throw classifyProviderError(secondaryError); }
   }
