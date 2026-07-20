@@ -69,23 +69,32 @@ export default function LandingPage() {
         <div className="absolute bottom-0 left-0 right-0 h-px shine-line" />
       </section>
 
-      <section id="about" className="mx-auto max-w-7xl px-5 py-24 sm:px-8 lg:px-14 lg:py-32">
-        <Reveal>
-          <div className="grid gap-12 lg:grid-cols-[0.72fr_1.28fr] lg:gap-24">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-copper">The hidden risk</p>
-              <h2 className="mt-6 max-w-md text-4xl font-semibold leading-[1.02] tracking-[-0.04em] sm:text-5xl">The hidden risk starts before the bench.</h2>
-            </div>
-            <div className="max-w-3xl lg:pt-2">
-              <p className="text-xl leading-9 text-ink/65">Researchers turn papers, messages, schemes and spreadsheets into quantities, order of addition, bench steps and analysis plans by hand. This pre-bench conversion is fragmented, hard to audit and easy to get wrong.</p>
-              <div className="mt-10 h-px w-full bg-ink/10" />
-              <div className="mt-6 grid gap-4 sm:grid-cols-3">
-                {["Fragmented experimental input", "Error-prone manual preparation", "Disconnected analysis"].map((item, index) => <div key={item} className="border-l border-copper/35 pl-4"><span className="font-mono text-xs text-copper">0{index + 1}</span><p className="mt-2 text-sm font-semibold leading-6 text-ink/75">{item}</p></div>)}
+      <section
+        id="about"
+        className="w-full bg-cover bg-center bg-no-repeat text-paper"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(45, 49, 49, 0.70), rgba(45, 49, 49, 0.70)), url('/home-page-background.png')",
+        }}
+      >
+        <div className="mx-auto max-w-7xl px-5 py-24 sm:px-8 lg:px-14 lg:py-32">
+          <Reveal>
+            <div className="grid gap-12 lg:grid-cols-[0.72fr_1.28fr] lg:gap-24">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-copper">The hidden risk</p>
+                <h2 className="mt-6 max-w-md text-4xl font-semibold leading-[1.02] tracking-[-0.04em] sm:text-5xl">The hidden risk starts before the bench.</h2>
               </div>
-              <p className="mt-8 max-w-2xl text-sm font-semibold leading-7 text-ink/75">Existing ELNs document what researchers did. BindLab focuses on what the researcher should do next and whether the plan is calculation-ready.</p>
+              <div className="max-w-3xl lg:pt-2">
+                <p className="text-xl leading-9 text-paper/80">Researchers turn papers, messages, schemes and spreadsheets into quantities, order of addition, bench steps and analysis plans by hand. This pre-bench conversion is fragmented, hard to audit and easy to get wrong.</p>
+                <div className="mt-10 h-px w-full bg-paper/20" />
+                <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                  {["Fragmented experimental input", "Error-prone manual preparation", "Disconnected analysis"].map((item, index) => <div key={item} className="border-l border-copper/35 pl-4"><span className="font-mono text-xs text-copper">0{index + 1}</span><p className="mt-2 text-sm font-semibold leading-6 text-paper/85">{item}</p></div>)}
+                </div>
+                <p className="mt-8 max-w-2xl text-sm font-semibold leading-7 text-paper/85">Existing ELNs document what researchers did. BindLab focuses on what the researcher should do next and whether the plan is calculation-ready.</p>
+              </div>
             </div>
-          </div>
-        </Reveal>
+          </Reveal>
+        </div>
       </section>
 
       <section id="resources" className="border-y border-ink/10 bg-white">
