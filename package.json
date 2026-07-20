@@ -12,6 +12,8 @@
     "restart": "npm run stop:3003 && npm run dev",
     "lint": "eslint .",
     "test": "vitest run",
+    "security:scan": "node scripts/security-audit.mjs",
+    "security:scan-client": "node scripts/client-bundle-secret-scan.mjs",
     "test:ai": "node scripts/test-ai.mjs",
     "ai:check-models": "node scripts/check-gemini-models.mjs"
   },

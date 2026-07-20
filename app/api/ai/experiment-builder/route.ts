@@ -7,8 +7,14 @@ import { experimentExtractionSchema, experimentSchema } from "@/lib/ai/experimen
 import { compactExtractionSchema } from "@/lib/ai/compact-extraction-schema";
 import { matchReagent } from "@/lib/ai/reagent-matcher";
 import { buildDeterministicTextDraft } from "@/lib/ai/partial-draft";
+import { publicError, readJsonWithLimit, rejectUntrustedOrigin, requestId as createRequestId, RequestLimitError } from "@/lib/security/http";
+import { rateLimit } from "@/lib/security/rate-limit";
 
-const requestSchema = z.object({ instruction: z.string().trim().min(1).max(72_000), pdfData: z.string().optional() });
+const MAX_PDF_BASE64_CHARS = 11_200_000;
+const requestSchema = z.object({
+  instruction: z.string().trim().min(1).max(36_000),
+  pdfData: z.string().max(MAX_PDF_BASE64_CHARS).regex(/^[A-Za-z0-9+/]*={0,2}$/).optional(),
+}).strict();
 const importedProvenance = () => ({ sourceType: "imported_from_text" as const, sourceText: null, sourceReference: null, confidence: null, confirmedByUser: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
 function errorResponse(error: AiServiceError, requestId: string) { console.error("BindLab AI request failed", { requestId, code: error.code, status: error.status }); return NextResponse.json({ ok: false, error: { code: error.code, message: error.message, requestId } }, { status: error.status }); }
 function extractJson(text: string) {
@@ -65,9 +71,18 @@ function buildDraft(responseText: string, instruction: string, additionalWarning
   return experimentSchema.parse({ ...parsed.data, experimentId: randomUUID(), createdAt: now, updatedAt: now, originalInstruction: instruction, experimentStatus: "needs_review" });
 }
 export async function POST(request: Request) {
-  const requestId = randomUUID();
+  const requestId = createRequestId();
+  const originError = rejectUntrustedOrigin(request);
+  if (originError) return originError;
   try {
-    const { instruction, pdfData } = requestSchema.parse(await request.json());
+    const limit = await rateLimit(request, { prefix: "experiment-builder", limit: 4, windowSeconds: 60 });
+    if (!limit.configured && process.env.NODE_ENV === "production") return publicError(503, "RATE_LIMIT_NOT_CONFIGURED", "AI experiment building is temporarily unavailable.", requestId);
+    if (!limit.allowed) {
+      const response = publicError(429, "RATE_LIMITED", "Too many AI requests. Please wait and try again.", requestId);
+      response.headers.set("Retry-After", String(limit.retryAfterSeconds));
+      return response;
+    }
+    const { instruction, pdfData } = requestSchema.parse(await readJsonWithLimit(request, 11_500_000));
     const prompt = `Inspect the attached PDF and selectable text. Return exactly one compact JSON object and nothing else. Combine text and visual evidence from reaction schemes, structures, arrows, reagent tables, figures, and handwritten notes. Shape: {"documentTitle":null,"objective":null,"reagents":[{"nameAsWritten":null,"quantityAsWritten":null,"roleAsWritten":null,"pageNumber":null,"sourceType":"pdf_text"}],"conditions":{"solventAsWritten":null,"temperatureAsWritten":null,"timeAsWritten":null,"atmosphereAsWritten":null},"procedureSteps":[],"workupSteps":[],"purificationSteps":[],"analysisSteps":[],"visualFindings":[{"pageNumber":null,"type":"reaction_scheme","description":"","confidence":0,"requiresManualConfirmation":true}],"missingInformation":[],"warnings":[]}. Never guess structures, SMILES, molecular weights, density, concentration, equivalents, temperature, time, yield, safety, or instrument settings. Unclear visual content must be described and flagged for manual confirmation with a page number. Text evidence and user instruction: ${instruction}`;
     try {
       const generation = await generateExperimentDraftJson(prompt, pdfData);
@@ -111,7 +126,8 @@ export async function POST(request: Request) {
     }
   } catch (error) {
     if (error instanceof AiServiceError) return errorResponse(error, requestId);
-    if (error instanceof z.ZodError) return errorResponse(new AiServiceError("INVALID_AI_OUTPUT", 400, "Enter an experiment description between 10 and 12,000 characters."), requestId);
+    if (error instanceof z.ZodError) return errorResponse(new AiServiceError("INVALID_AI_OUTPUT", 400, "Enter a valid experiment description or supported PDF."), requestId);
+    if (error instanceof RequestLimitError) return publicError(413, "REQUEST_TOO_LARGE", "The AI request is too large.", requestId);
     console.error("BindLab AI request failed before classification", {
       requestId,
       errorType: error instanceof Error ? error.name : typeof error,

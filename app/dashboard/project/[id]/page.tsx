@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { ResultCard } from "@/components/ResultCard";
 import { ProjectActions } from "./project-actions";
-import { createServiceSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getLatestLocalGeneration, getLocalProject, isSupabaseConfigured, listLocalCalculationLogs } from "@/lib/storage";
 import { CalculatorHistory, type CalculationHistoryItem } from "@/components/calculators/CalculatorHistory";
 import { calculatorDefinitions, recommendCalculatorsFromText } from "@/lib/calculators/registry";
@@ -10,12 +10,15 @@ import type { LabPrepGuide } from "@/lib/ai/types";
 
 export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = isSupabaseConfigured() ? createServiceSupabaseClient() : null;
+  const supabase = isSupabaseConfigured() ? createServerSupabaseClient() : null;
+  const user = supabase ? (await supabase.auth.getUser()).data.user : null;
+  if (supabase && !user) notFound();
   const project = supabase
     ? (await supabase
       .from("projects")
       .select("id,title,subject_area,user_level,preferred_language,created_at")
       .eq("id", id)
+      .eq("user_id", user!.id)
       .single()).data
     : await getLocalProject(id);
 
@@ -26,6 +29,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
       .from("generations")
       .select("output_json,model_provider,model_name,created_at")
       .eq("project_id", id)
+      .eq("user_id", user!.id)
       .order("created_at", { ascending: false })
       .limit(1)
       .single()).data
@@ -56,6 +60,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
       .from("calculation_logs")
       .select("id,calculator_type,input_json,result_json,formula,explanation,created_at")
       .eq("project_id", id)
+      .eq("user_id", user!.id)
       .order("created_at", { ascending: false })).data ?? [])
     : await listLocalCalculationLogs(id);
 

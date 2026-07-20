@@ -272,6 +272,24 @@ Response:
 
 ## Troubleshooting
 
+## Production security variables
+
+In addition to the existing server-side AI and Supabase configuration, production AI routes
+require a shared serverless rate limiter:
+
+```bash
+NEXT_PUBLIC_SITE_URL=https://your-production-domain.example
+UPSTASH_REDIS_REST_URL=https://your-shared-rate-limit-store.example
+UPSTASH_REDIS_REST_TOKEN=your_rate_limit_token
+```
+
+Set the Supabase Auth site URL and allow the production `/auth/callback` redirect. Review and
+apply `supabase/migrations/003_authenticated_ownership_hardening.sql` in Supabase before enabling
+any secure cloud-save UI. The current interface remains local-browser-only.
+
+Never copy real keys into this document, source files, screenshots, client variables, or build
+logs. A credential that was ever publicly disclosed must be revoked and rotated at the provider.
+
 ### Build Fails
 
 **Error:** `NEXT_PUBLIC_SUPABASE_URL is not set`

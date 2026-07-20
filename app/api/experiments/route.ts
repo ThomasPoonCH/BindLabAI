@@ -1,38 +1,28 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@supabase/supabase-js";
-import { experimentSchema, type ExperimentRecord } from "@/lib/ai/experiment-schema";
+import { experimentSchema } from "@/lib/ai/experiment-schema";
+import { publicError, readJsonWithLimit, rejectUntrustedOrigin, requestId, RequestLimitError } from "@/lib/security/http";
+import { requireAuthenticatedUser } from "@/lib/supabase/server";
 
 const createExperimentSchema = experimentSchema.omit({
   experimentId: true,
   createdAt: true,
   updatedAt: true,
-});
-
-function getSupabaseClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error("Missing Supabase configuration: NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
-  }
-
-  return createClient(supabaseUrl, supabaseServiceKey);
-}
+}).strict();
 
 export async function POST(request: Request) {
+  const id = requestId();
+  const originError = rejectUntrustedOrigin(request);
+  if (originError) return originError;
   try {
-    const supabase = getSupabaseClient();
-    const body = await request.json();
-    const validated = createExperimentSchema.parse(body);
-
-    // Generate experiment ID
+    const { supabase, user } = await requireAuthenticatedUser();
+    if (!user) return publicError(401, "AUTHENTICATION_REQUIRED", "Sign in to save an experiment securely.", id);
+    const validated = createExperimentSchema.parse(await readJsonWithLimit(request, 256_000));
     const experimentId = crypto.randomUUID();
     const now = new Date().toISOString();
-
-    const record = {
+    const { data, error } = await supabase.from("experiments").insert({
       id: experimentId,
-      user_id: null, // For MVP single-user demo
+      user_id: user.id,
       title: validated.title,
       objective: validated.objective,
       reaction_type: validated.reactionType,
@@ -54,60 +44,33 @@ export async function POST(request: Request) {
       ai_summary: validated.aiSummary,
       created_at: now,
       updated_at: now,
-    };
-
-    const { data, error } = await supabase
-      .from("experiments")
-      .insert([record])
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json(
-        { error: { code: "DATABASE_ERROR", message: error.message } },
-        { status: 500 }
-      );
+    }).select().single();
+    if (error || !data) {
+      console.error("Cloud experiment create failed", { requestId: id, code: error?.code ?? "no_data" });
+      return publicError(500, "DATABASE_ERROR", "The experiment could not be saved securely.", id);
     }
-
-    return NextResponse.json(
-      { experimentId: data.id, ...data },
-      { status: 201 }
-    );
+    return NextResponse.json(data, { status: 201, headers: { "Cache-Control": "no-store, private" } });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: { code: "VALIDATION_ERROR", message: error.message } },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(
-      { error: { code: "UNKNOWN_ERROR", message: "Failed to create experiment" } },
-      { status: 500 }
-    );
+    if (error instanceof z.ZodError) return publicError(400, "VALIDATION_ERROR", "The experiment record is invalid.", id);
+    if (error instanceof RequestLimitError) return publicError(413, "REQUEST_TOO_LARGE", "The experiment record is too large.", id);
+    console.error("Cloud experiment create failed", { requestId: id, category: error instanceof Error ? error.name : "unknown" });
+    return publicError(503, "CLOUD_STORAGE_UNAVAILABLE", "Secure cloud saving is currently unavailable.", id);
   }
 }
 
 export async function GET() {
+  const id = requestId();
   try {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase
-      .from("experiments")
-      .select("*")
-      .order("created_at", { ascending: false });
-
+    const { supabase, user } = await requireAuthenticatedUser();
+    if (!user) return publicError(401, "AUTHENTICATION_REQUIRED", "Sign in to view secure cloud experiments.", id);
+    const { data, error } = await supabase.from("experiments").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
     if (error) {
-      return NextResponse.json(
-        { error: { code: "DATABASE_ERROR", message: error.message } },
-        { status: 500 }
-      );
+      console.error("Cloud experiment list failed", { requestId: id, code: error.code });
+      return publicError(500, "DATABASE_ERROR", "Experiments could not be loaded.", id);
     }
-
-    return NextResponse.json({ experiments: data });
+    return NextResponse.json({ experiments: data ?? [] }, { headers: { "Cache-Control": "no-store, private" } });
   } catch (error) {
-    return NextResponse.json(
-      { error: { code: "UNKNOWN_ERROR", message: "Failed to list experiments" } },
-      { status: 500 }
-    );
+    console.error("Cloud experiment list failed", { requestId: id, category: error instanceof Error ? error.name : "unknown" });
+    return publicError(503, "CLOUD_STORAGE_UNAVAILABLE", "Secure cloud saving is currently unavailable.", id);
   }
 }

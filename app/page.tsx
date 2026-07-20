@@ -27,7 +27,7 @@ export default function LandingPage() {
               From idea to bench-ready experiment in one minute.
             </h1>
             <p className="mt-9 max-w-2xl text-lg leading-8 text-ink/65 sm:text-xl">
-              BindLab is the AI experiment execution and memory platform for chemistry and chemical-biology labs. We turns supervisor instructions, papers and reaction schemes into a checked workflow that scientists can execute, analyse and reuse.
+              BindLab is the AI experiment execution and memory platform for chemistry and chemical-biology labs. We turn supervisor instructions, papers and reaction schemes into a checked workflow that scientists can execute, analyse and reuse.
             </p>
             <div className="mt-10 flex flex-wrap items-center gap-4">
               <Link href="/dashboard/reaction/new" className="group inline-flex items-center gap-3 rounded-md bg-ink px-6 py-4 text-sm font-semibold text-paper shadow-soft transition duration-500 hover:-translate-y-1 hover:bg-ink/90">
