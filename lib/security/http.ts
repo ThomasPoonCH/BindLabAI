@@ -2,6 +2,38 @@ import { createHash, randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 
 const developmentOrigins = new Set(["http://localhost:3003", "http://127.0.0.1:3003"]);
+const productionOrigin = "https://bindlabaihk.vercel.app";
+
+export function normalizeOrigin(value: string | undefined, addHttps = false): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  const candidate = addHttps && !/^https?:\/\//i.test(trimmed) ? `https://${trimmed}` : trimmed;
+  try {
+    const parsed = new URL(candidate);
+    if (!["http:", "https:"].includes(parsed.protocol)) return null;
+    if (parsed.username || parsed.password || parsed.pathname !== "/" || parsed.search || parsed.hash) return null;
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+}
+
+export function trustedBrowserOrigins(): ReadonlySet<string> {
+  const trusted = new Set<string>([productionOrigin]);
+  if (process.env.VERCEL_ENV === "preview") {
+    const previewOrigin = normalizeOrigin(process.env.VERCEL_URL, true);
+    if (previewOrigin) trusted.add(previewOrigin);
+  }
+  if (process.env.NODE_ENV !== "production") {
+    for (const origin of developmentOrigins) trusted.add(origin);
+  }
+  return trusted;
+}
+
+function isBrowserRequestWithoutOrigin(request: Request): boolean {
+  if (request.headers.has("sec-fetch-site")) return true;
+  return /\b(Mozilla|Chrome|Chromium|Safari|Firefox|Edg)\b/i.test(request.headers.get("user-agent") ?? "");
+}
 
 export function requestId(): string {
   return randomUUID();
@@ -15,12 +47,10 @@ export function publicError(status: number, code: string, message: string, id = 
 }
 
 export function isTrustedBrowserOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  if (!origin) return true;
-  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (configured && origin === configured) return true;
-  if (process.env.NODE_ENV !== "production" && developmentOrigins.has(origin)) return true;
-  return false;
+  const suppliedOrigin = request.headers.get("origin");
+  if (!suppliedOrigin) return !isBrowserRequestWithoutOrigin(request);
+  const origin = normalizeOrigin(suppliedOrigin);
+  return origin !== null && trustedBrowserOrigins().has(origin);
 }
 
 export function rejectUntrustedOrigin(request: Request) {
