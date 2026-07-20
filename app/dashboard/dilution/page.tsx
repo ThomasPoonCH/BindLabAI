@@ -12,6 +12,9 @@ export default function DilutionCalculatorPage() {
             Professional dilution and recipe calculations. Arithmetic is handled by deterministic TypeScript functions, not AI.
           </p>
         </div>
+        <p className="mb-8 rounded-md border border-copper/20 bg-white px-4 py-3 text-sm leading-6 text-ink/70">
+          BindLab provides calculation and workflow support. Users must verify quantities, units, hazards, SDS information and laboratory procedures before execution.
+        </p>
         <CalculatorWorkbench projectId={null} />
       </main>
     </AppShell>

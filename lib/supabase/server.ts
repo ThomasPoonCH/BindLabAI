@@ -4,11 +4,14 @@ import { createClient } from "@supabase/supabase-js";
 import type { CookieOptions } from "@supabase/ssr";
 
 export function createServerSupabaseClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) throw new Error("Supabase authentication is not configured.");
   const cookieStore = cookies();
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://example.supabase.co",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "placeholder",
+    url,
+    key,
     {
       cookies: {
         async getAll() {
@@ -28,9 +31,19 @@ export function createServerSupabaseClient() {
 }
 
 export function createServiceSupabaseClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error("Supabase administrative access is not configured.");
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://example.supabase.co",
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "placeholder",
+    url,
+    key,
     { auth: { persistSession: false } }
   );
+}
+
+export async function requireAuthenticatedUser() {
+  const supabase = createServerSupabaseClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return { supabase, user: null };
+  return { supabase, user };
 }

@@ -17,6 +17,9 @@ export default async function CalculatorsPage({ searchParams }: { searchParams: 
             Deterministic calculation tools show units, formulas, assumptions, and practical preparation guidance. AI can recommend tools, but it never performs the underlying arithmetic.
           </p>
         </div>
+        <p className="mb-8 rounded-md border border-copper/20 bg-white px-4 py-3 text-sm leading-6 text-ink/70">
+          BindLab provides calculation and workflow support. Users must verify quantities, units, hazards, SDS information and laboratory procedures before execution.
+        </p>
 
         <CalculatorWorkbench projectId={projectId ?? null} />
 

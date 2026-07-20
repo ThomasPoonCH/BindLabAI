@@ -23,7 +23,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="bg-white px-4 pb-20 pt-3 sm:px-6 md:pb-28 md:pt-6">
+      <section className="overflow-hidden bg-white px-4 pb-20 pt-3 sm:px-6 md:pb-28 md:pt-6">
         <div className="mx-auto max-w-7xl">
           <h2
             aria-hidden="true"
