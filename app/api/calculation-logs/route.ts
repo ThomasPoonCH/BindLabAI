@@ -1,8 +1,8 @@
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createServiceSupabaseClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured, saveLocalCalculationLog } from "@/lib/storage";
+import { publicError, rejectUntrustedOrigin } from "@/lib/security/http";
 
 const calculationLogSchema = z.object({
   projectId: z.string().uuid().nullable().optional(),
@@ -15,43 +15,29 @@ const calculationLogSchema = z.object({
 
 export async function POST(request: Request) {
   const requestId = randomUUID();
+  const originError = rejectUntrustedOrigin(request);
+  if (originError) return originError;
+  if (process.env.NODE_ENV === "production") {
+    return publicError(503, "CLOUD_PERSISTENCE_DISABLED", "Cloud calculation-log storage is not enabled for the public prototype.", requestId);
+  }
   try {
     const input = calculationLogSchema.parse(await request.json());
     const id = randomUUID();
     const createdAt = new Date().toISOString();
 
-    if (!isSupabaseConfigured()) {
-      await saveLocalCalculationLog({
-        id,
-        project_id: input.projectId ?? null,
-        calculator_type: input.calculatorType,
-        input_json: input.inputJson,
-        result_json: input.resultJson,
-        formula: input.formula,
-        explanation: input.explanation,
-        created_at: createdAt
-      });
-
-      return NextResponse.json({ id });
+    if (isSupabaseConfigured()) {
+      return publicError(503, "LEGACY_ROUTE_DISABLED", "Cloud calculation-log storage requires authenticated ownership and is not enabled.", requestId);
     }
-
-    const supabase = createServiceSupabaseClient();
-    const { error } = await supabase.from("calculation_logs").insert({
+    await saveLocalCalculationLog({
       id,
-      user_id: null,
       project_id: input.projectId ?? null,
       calculator_type: input.calculatorType,
       input_json: input.inputJson,
       result_json: input.resultJson,
       formula: input.formula,
-      explanation: input.explanation
+      explanation: input.explanation,
+      created_at: createdAt
     });
-
-    if (error) {
-      console.error("BindLab calculation persistence failed", { requestId, code: error.code });
-      return NextResponse.json({ error: "The calculation could not be saved. Please try again.", requestId }, { status: 500 });
-    }
-
     return NextResponse.json({ id });
   } catch (error) {
     console.error("BindLab calculation log request failed", { requestId, category: error instanceof Error ? error.name : "unknown" });

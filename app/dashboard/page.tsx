@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
-import { createServiceSupabaseClient } from "@/lib/supabase/server";
-import { isSupabaseConfigured, listLocalProjects } from "@/lib/storage";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { Activity, ArrowRight, Calculator, ClipboardCheck, FlaskConical, Microscope, Plus } from "lucide-react";
 
 const workflowCards = [
@@ -38,13 +37,21 @@ const workflowCards = [
 ];
 
 export default async function DashboardPage() {
-  const projects = isSupabaseConfigured()
-    ? (await createServiceSupabaseClient()
-      .from("projects")
-      .select("id,title,subject_area,user_level,preferred_language,created_at")
-      .order("created_at", { ascending: false })
-      .limit(20)).data
-    : await listLocalProjects();
+  let projects: Array<{ id: string; title: string; subject_area: string; user_level: string; preferred_language: string; created_at: string }> = [];
+  try {
+    const supabase = createServerSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      projects = (await supabase
+        .from("projects")
+        .select("id,title,subject_area,user_level,preferred_language,created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(20)).data ?? [];
+    }
+  } catch {
+    projects = [];
+  }
 
   return (
     <AppShell>
@@ -83,7 +90,7 @@ export default async function DashboardPage() {
           <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-semibold">Saved lab prep projects</h2>
-            <p className="mt-2 text-ink/65">Existing AI guide projects are preserved for backwards compatibility.</p>
+            <p className="mt-2 text-ink/65">Authenticated legacy AI guide projects appear only for their owner.</p>
           </div>
           <Link href="/dashboard/new" className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 font-semibold text-paper">
             <Plus size={18} />
@@ -109,7 +116,7 @@ export default async function DashboardPage() {
           ) : (
             <div className="rounded-md border border-dashed border-ink/20 bg-white p-8 text-center">
               <h2 className="text-xl font-semibold">No lab prep projects yet</h2>
-              <p className="mt-2 text-ink/65">Create your first guide from a supervisor message, protocol, or notes.</p>
+              <p className="mt-2 text-ink/65">No secure legacy projects are available for this account.</p>
             </div>
           )}
           </div>
