@@ -21,8 +21,8 @@ describe("getGeminiModelName", () => {
       if (model === "gemma-4-31b-it") throw new Error("500 Internal Server Error");
       return "fallback response";
     }, "gemma-4-31b-it", "gemini-flash-latest", async () => undefined);
-    expect(calls).toEqual(["gemma-4-31b-it", "gemma-4-31b-it", "gemma-4-31b-it", "gemini-flash-latest"]);
-    expect(result.metadata).toMatchObject({ fallbackUsed: true, successfulModel: "gemini-flash-latest", attemptCount: 4, preferredAttemptCount: 3 });
+    expect(calls).toEqual(["gemma-4-31b-it", "gemma-4-31b-it", "gemini-flash-latest"]);
+    expect(result.metadata).toMatchObject({ fallbackUsed: true, successfulModel: "gemini-flash-latest", attemptCount: 3, preferredAttemptCount: 2 });
   });
 
   it("does not retry invalid credentials", async () => {

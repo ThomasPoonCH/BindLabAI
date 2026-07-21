@@ -7,8 +7,9 @@ import { experimentExtractionSchema, experimentSchema } from "@/lib/ai/experimen
 import { compactExtractionSchema } from "@/lib/ai/compact-extraction-schema";
 import { matchReagent } from "@/lib/ai/reagent-matcher";
 import { buildDeterministicTextDraft } from "@/lib/ai/partial-draft";
-import { publicError, readJsonWithLimit, rejectUntrustedOrigin, requestId as createRequestId, RequestLimitError } from "@/lib/security/http";
+import { MalformedJsonError, publicError, readJsonWithLimit, rejectUntrustedOrigin, requestId as createRequestId, RequestLimitError, UnsupportedContentTypeError } from "@/lib/security/http";
 import { rateLimit } from "@/lib/security/rate-limit";
+import { acquireConcurrencySlot } from "@/lib/security/concurrency-limit";
 
 const MAX_PDF_BASE64_CHARS = 11_200_000;
 const requestSchema = z.object({
@@ -83,6 +84,8 @@ export async function POST(request: Request) {
       return response;
     }
     const { instruction, pdfData } = requestSchema.parse(await readJsonWithLimit(request, 11_500_000));
+    const release = acquireConcurrencySlot("experiment-builder", 2);
+    if (!release) return publicError(429, "AI_BUSY", "AI experiment building is busy. Please wait and try again.", requestId);
     const prompt = `Inspect the attached PDF and selectable text. Return exactly one compact JSON object and nothing else. Combine text and visual evidence from reaction schemes, structures, arrows, reagent tables, figures, and handwritten notes. Shape: {"documentTitle":null,"objective":null,"reagents":[{"nameAsWritten":null,"quantityAsWritten":null,"roleAsWritten":null,"pageNumber":null,"sourceType":"pdf_text"}],"conditions":{"solventAsWritten":null,"temperatureAsWritten":null,"timeAsWritten":null,"atmosphereAsWritten":null},"procedureSteps":[],"workupSteps":[],"purificationSteps":[],"analysisSteps":[],"visualFindings":[{"pageNumber":null,"type":"reaction_scheme","description":"","confidence":0,"requiresManualConfirmation":true}],"missingInformation":[],"warnings":[]}. Never guess structures, SMILES, molecular weights, density, concentration, equivalents, temperature, time, yield, safety, or instrument settings. Unclear visual content must be described and flagged for manual confirmation with a page number. Text evidence and user instruction: ${instruction}`;
     try {
       const generation = await generateExperimentDraftJson(prompt, pdfData);
@@ -123,10 +126,14 @@ export async function POST(request: Request) {
         const partialDraft = buildDeterministicTextDraft(instruction);
         return NextResponse.json({ ok: false, code: "VISUAL_ANALYSIS_TIMEOUT", message: "Visual analysis did not complete.", requestId, retryable: true, error: { code: "VISUAL_ANALYSIS_TIMEOUT", message: "Visual analysis did not complete.", requestId, retryable: true }, partialDraft, completedStages: ["pdf_upload", "pdf_text_extraction", "text_evidence_extraction", "experiment_mapping", "schema_validation"], failedStage: "visual_analysis" }, { status: 206 });
       }
+    } finally {
+      release();
     }
   } catch (error) {
     if (error instanceof AiServiceError) return errorResponse(error, requestId);
     if (error instanceof z.ZodError) return errorResponse(new AiServiceError("INVALID_AI_OUTPUT", 400, "Enter a valid experiment description or supported PDF."), requestId);
+    if (error instanceof UnsupportedContentTypeError) return publicError(415, "UNSUPPORTED_MEDIA_TYPE", "Send the AI request as JSON.", requestId);
+    if (error instanceof MalformedJsonError) return publicError(400, "MALFORMED_JSON", "The JSON request is malformed.", requestId);
     if (error instanceof RequestLimitError) return publicError(413, "REQUEST_TOO_LARGE", "The AI request is too large.", requestId);
     console.error("BindLab AI request failed before classification", {
       requestId,

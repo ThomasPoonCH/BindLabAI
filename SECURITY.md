@@ -43,6 +43,21 @@ Production AI and PDF routes fail closed unless both variables are configured:
 The development fallback is intentionally process-local and is not represented as globally
 reliable. Vercel deployments need the shared Redis REST configuration.
 
+Current prototype limits are deliberately conservative:
+
+- experiment builder: 4 requests per network identifier per 60 seconds;
+- general Gemini route: 5 requests per network identifier per 60 seconds;
+- PDF extraction: 6 requests per network identifier per 60 seconds;
+- AI and PDF work: at most 2 simultaneous jobs per function instance (best effort, not a
+  distributed lock);
+- JSON prompts: 12,000 characters on the general route and 36,000 characters for experiment
+  evidence; provider calls time out after 15 seconds;
+- PDF uploads: `application/pdf` plus a `.pdf` extension and `%PDF-` signature, 8 MiB, 30 pages,
+  24,000 extracted characters, and a 10-second parser timeout.
+
+The upload route parses PDFs in memory and never writes them to disk or creates a public URL.
+Encrypted, empty, malformed, disguised, and unsupported documents receive generic errors.
+
 ## Supabase authentication
 
 Configure Supabase Auth site URL and allowed redirect URLs for:

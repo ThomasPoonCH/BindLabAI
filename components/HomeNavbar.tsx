@@ -12,7 +12,7 @@ const leftLinks = [
 
 const rightLinks = [
   { label: "Resources", href: "/#resources" },
-  { label: "Lab Guides", href: "/#lab-guides" }
+  { label: "Live Bench", href: "/dashboard/bench-mode-demo" }
 ];
 
 export function HomeNavbar({ tone = "dark" }: { tone?: "dark" | "light" }) {

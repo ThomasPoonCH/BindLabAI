@@ -1,3 +1,4 @@
+import "server-only";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getAiConfig } from "./config";
 import { AiServiceError, classifyProviderError } from "./service-error";
@@ -27,7 +28,9 @@ function hasParseableJson(text: string) {
 
 export async function runWithModelFallback(run: ModelRunner, requestedModel: string, fallbackModel: string, sleep = delay): Promise<GeminiGeneration> {
   let preferredAttempts = 0;
-  for (let retry = 0; retry < 3; retry += 1) { preferredAttempts += 1; try { return { text: await run(requestedModel), metadata: { requestedModel, successfulModel: requestedModel, fallbackUsed: false, attemptCount: preferredAttempts, preferredAttemptCount: preferredAttempts } }; } catch (error) { if (!isTemporaryProviderError(error)) throw error; if (retry < 2) await sleep(1000 * (retry + 1)); } }
+  // At most one retry on the preferred model, followed by one fallback attempt.
+  // This caps paid provider work while still tolerating a transient failure.
+  for (let retry = 0; retry < 2; retry += 1) { preferredAttempts += 1; try { return { text: await run(requestedModel), metadata: { requestedModel, successfulModel: requestedModel, fallbackUsed: false, attemptCount: preferredAttempts, preferredAttemptCount: preferredAttempts } }; } catch (error) { if (!isTemporaryProviderError(error)) throw error; if (retry < 1) await sleep(1000); } }
   return { text: await run(fallbackModel), metadata: { requestedModel, successfulModel: fallbackModel, fallbackUsed: true, attemptCount: preferredAttempts + 1, preferredAttemptCount: preferredAttempts } };
 }
 
