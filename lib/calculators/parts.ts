@@ -3,6 +3,27 @@ import { convertUnits, unitDefinitions } from "./engine";
 export type PartsMode = "per_reference" | "component_ratio" | "in_total" | "add_to" | "percent_vv";
 export type Interpretation = "per_b" | "in_final" | "added_to_b";
 
+const formatQuantity = (value: number) => Number(value.toPrecision(6)).toString();
+export const formatEnteredUnit = (unit: string) => normalizeUnit(unit) === "uL" ? "µL" : unit.trim();
+
+export function formatPartsInstruction({ mode, substanceA, substanceB, amountA, amountB, resultUnit, finalVolume, enteredB, enteredBUnit }: {
+  mode: PartsMode;
+  substanceA: string;
+  substanceB: string;
+  amountA: number;
+  amountB: number | null;
+  resultUnit: string;
+  finalVolume: number;
+  enteredB: number;
+  enteredBUnit: string;
+}) {
+  const displayedResultUnit = formatEnteredUnit(resultUnit);
+  if (mode === "percent_vv" || mode === "in_total") return `Measure ${formatQuantity(amountA)} ${displayedResultUnit} ${substanceA}, then add ${substanceB} until the final total volume reaches ${formatQuantity(finalVolume)} ${displayedResultUnit}.`;
+  if (mode === "component_ratio") return `Mix ${formatQuantity(amountA)} ${displayedResultUnit} ${substanceA} with ${formatQuantity(amountB!)} ${displayedResultUnit} ${substanceB} to make approximately ${formatQuantity(finalVolume)} ${displayedResultUnit}.`;
+  if (mode === "add_to") return `Add ${formatQuantity(amountA)} ${displayedResultUnit} ${substanceA} to ${formatQuantity(enteredB)} ${formatEnteredUnit(enteredBUnit)} ${substanceB}. Combined liquid volumes are approximate.`;
+  return `Add ${formatQuantity(amountA)} ${displayedResultUnit} ${substanceA} for ${formatQuantity(enteredB)} ${formatEnteredUnit(enteredBUnit)} ${substanceB}.`;
+}
+
 export function normalizeUnit(unit: string) {
   const normalized = unit.trim().replaceAll("µ", "u").replace(/^ul$/i, "uL").replace(/^ug$/i, "ug").replace(/^umol$/i, "umol");
   return normalized === "uL" || normalized === "ug" || normalized === "umol" ? normalized : unit;
