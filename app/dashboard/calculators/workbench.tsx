@@ -241,7 +241,7 @@ function DilutionRecipeCalculator({ projectId }: { projectId: string | null }) {
           {result.error && <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{result.error}</p>}
         </div>
 
-        <ResultBox
+        <ResultBox invalid={Boolean(result.error)}
           projectId={projectId}
           calculatorType="dilution_recipe"
           formula={mode === "fold" ? "stockVolume = finalVolume / foldFactor" : mode === "ratio" ? "ratio dilution recipe" : "volumeToAdd = target x final / stock"}
@@ -265,7 +265,7 @@ function MolarityCalculator({ projectId }: { projectId: string | null }) {
         <InputWithUnit label="Moles" value={moles} onChange={setMoles} unit="mol" min={0} />
         <InputWithUnit label="Volume" value={volumeL} onChange={setVolumeL} unit="L" min={0} />
         <FormulaBox formula="M = mol / L" explanation="Molarity is amount of substance divided by final solution volume." />
-        <ResultBox projectId={projectId} calculatorType="molarity" formula="M = mol / L" inputs={{ moles, volumeL }} result={result.value ? `${fmt(result.value)} M` : result.error ?? ""} warning={result.error} />
+        <ResultBox invalid={Boolean(result.error)} projectId={projectId} calculatorType="molarity" formula="M = mol / L" inputs={{ moles, volumeL }} result={result.value !== undefined ? `${fmt(result.value)} M` : result.error ?? ""} warning={result.error} />
       </div>
     </CalculatorCard>
   );
@@ -292,7 +292,7 @@ function DilutionCalculator({ projectId }: { projectId: string | null }) {
         <NumberWithUnitSelect label="Target concentration C2" value={c2} onChange={setC2} unit={c2Unit} onUnitChange={(unit) => setC2Unit(unit as ConcentrationUnit)} units={["M", "mM", "uM", "nM"]} />
         <NumberWithUnitSelect label="Final volume V2" value={v2} onChange={setV2} unit={volumeUnit} onUnitChange={(unit) => setVolumeUnit(unit as VolumeUnit)} units={["uL", "mL", "L"]} />
         <FormulaBox formula="V1 = (C2 x V2) / C1" explanation="C1 and C2 are converted internally to M. V2 is converted internally to L, then the stock volume is displayed in your selected volume unit." />
-        <ResultBox projectId={projectId} calculatorType="dilution" formula="V1 = (C2 x V2) / C1" inputs={{ C1: c1, C1Unit: c1Unit, C2: c2, C2Unit: c2Unit, V2: v2, volumeUnit }} result={result.value ? `${fmt(result.value)} ${volumeUnit} stock` : result.error ?? ""} warning={result.error} />
+        <ResultBox invalid={Boolean(result.error)} projectId={projectId} calculatorType="dilution" formula="V1 = (C2 x V2) / C1" inputs={{ C1: c1, C1Unit: c1Unit, C2: c2, C2Unit: c2Unit, V2: v2, volumeUnit }} result={result.value !== undefined ? `${fmt(result.value)} ${volumeUnit} stock` : result.error ?? ""} warning={result.error} />
       </div>
     </CalculatorCard>
   );
@@ -347,7 +347,7 @@ function MassDensityCalculator({ projectId }: { projectId: string | null }) {
         <InputWithUnit label="Mass" value={massG} onChange={setMassG} unit="g" min={0} />
         <InputWithUnit label="Density" value={density} onChange={setDensity} unit="g/mL" min={0} />
         <FormulaBox formula="volume = mass / density" explanation="If density is missing, do not calculate liquid volume. Confirm density and temperature/source." />
-        <ResultBox projectId={projectId} calculatorType="volume_density" formula="volume = mass / density" inputs={{ massG, densityGPerMl: density }} result={result.value ? `${fmt(result.value)} mL` : result.error ?? ""} warning={result.error} />
+        <ResultBox invalid={Boolean(result.error)} projectId={projectId} calculatorType="volume_density" formula="volume = mass / density" inputs={{ massG, densityGPerMl: density }} result={result.value !== undefined ? `${fmt(result.value)} mL` : result.error ?? ""} warning={result.error} />
       </div>
     </CalculatorCard>
   );
@@ -357,14 +357,14 @@ function SolventVolumeCalculator({ projectId }: { projectId: string | null }) {
   const [moles, setMoles] = useState(0.000085);
   const [targetM, setTargetM] = useState(0.1333);
   const result = useMemo(() => safe(() => calculateSolventVolumeForTargetConcentration(moles, targetM)), [moles, targetM]);
-  const volumeUl = result.value ? result.value * 1_000_000 : 0;
+  const volumeUl = result.value !== undefined ? result.value * 1_000_000 : 0;
   return (
     <CalculatorCard title="Solvent volume for target concentration" description="Calculate solvent volume from moles and target molarity.">
       <div className="grid gap-3">
         <InputWithUnit label="Amount" value={moles} onChange={setMoles} unit="mol" min={0} />
         <InputWithUnit label="Target concentration" value={targetM} onChange={setTargetM} unit="M" min={0} />
         <FormulaBox formula="volume L = moles / target M" explanation="Example: 85 umol / 0.1333 M = 0.6377 mL = 637.7 uL." />
-        <ResultBox projectId={projectId} calculatorType="solvent_volume_for_target_concentration" formula="volume L = moles / target M" inputs={{ moles, targetConcentrationM: targetM }} result={result.value ? `${fmt(result.value * 1000)} mL (${fmt(volumeUl)} uL)` : result.error ?? ""} warning={result.error ?? pipetteWarning(volumeUl)} />
+        <ResultBox invalid={Boolean(result.error)} projectId={projectId} calculatorType="solvent_volume_for_target_concentration" formula="volume L = moles / target M" inputs={{ moles, targetConcentrationM: targetM }} result={result.value !== undefined ? `${fmt(result.value * 1000)} mL (${fmt(volumeUl)} uL)` : result.error ?? ""} warning={result.error ?? pipetteWarning(volumeUl)} />
       </div>
     </CalculatorCard>
   );
@@ -373,14 +373,15 @@ function SolventVolumeCalculator({ projectId }: { projectId: string | null }) {
 function TheoreticalYieldCalculator({ projectId }: { projectId: string | null }) {
   const [moles, setMoles] = useState(0.001);
   const [mw, setMw] = useState(250);
-  const result = useMemo(() => safe(() => calculateTheoreticalYield(moles, mw)), [moles, mw]);
+  const [stoichiometry, setStoichiometry] = useState<number | null>(null);
+  const result = useMemo(() => safe(() => { if (stoichiometry === null || !Number.isFinite(stoichiometry) || stoichiometry <= 0) throw new Error("Enter the confirmed product moles per mole of limiting reagent."); return calculateTheoreticalYield(moles * stoichiometry, mw); }), [moles, mw, stoichiometry]);
   return (
     <CalculatorCard title="Theoretical yield calculator" description="Calculate expected product mass from limiting moles and product MW.">
       <div className="grid gap-3">
         <InputWithUnit label="Limiting reagent amount" value={moles} onChange={setMoles} unit="mol" min={0} />
         <InputWithUnit label="Product molecular weight" value={mw} onChange={setMw} unit="g/mol" min={0} />
-        <FormulaBox formula="theoretical mass = limiting mol x product MW" explanation="Assumes 1:1 stoichiometry unless adjusted before entering limiting moles." />
-        <ResultBox projectId={projectId} calculatorType="theoretical_yield" formula="theoretical mass = limiting mol x product MW" inputs={{ limitingMoles: moles, productMW: mw }} result={result.value ? `${fmt(result.value)} g (${fmt(convertMolToUmol(moles))} umol scale)` : result.error ?? ""} warning={result.error} />
+        <label className="grid gap-1 text-sm">Confirmed product mol per limiting reagent mol<input type="number" min="0" step="any" value={stoichiometry ?? ""} onChange={event => setStoichiometry(event.target.value ? Number(event.target.value) : null)} className="rounded border border-ink/15 p-2" /></label><FormulaBox formula="theoretical mass = limiting mol x product stoichiometry x product MW" explanation="Stoichiometry must be supplied; no 1:1 relationship is assumed." />
+        <ResultBox invalid={Boolean(result.error)} projectId={projectId} calculatorType="theoretical_yield" formula="theoretical mass = limiting mol x product stoichiometry x product MW" inputs={{ limitingMoles: moles, productMW: mw, stoichiometry }} result={result.value !== undefined ? `${fmt(result.value)} g (${fmt(convertMolToUmol(moles * (stoichiometry ?? 0)))} umol product)` : result.error ?? ""} warning={result.error} />
       </div>
     </CalculatorCard>
   );
@@ -396,7 +397,7 @@ function AcnWaterCalculator({ projectId }: { projectId: string | null }) {
         <InputWithUnit label="Total volume" value={total} onChange={setTotal} unit="mL" min={0} />
         <InputWithUnit label="ACN percentage" value={acn} onChange={setAcn} unit="%" min={0} />
         <FormulaBox formula="ACN mL = total mL x ACN%" explanation="Water is the remaining volume. Confirm whether additives are added before or after q.s. to final volume." />
-        <ResultBox projectId={projectId} calculatorType="acn_water" formula="ACN mL = total mL x ACN%" inputs={{ totalVolumeMl: total, acnPercent: acn }} result={result.value ? `${fmt(result.value.acnMl)} mL ACN + ${fmt(result.value.waterMl)} mL H2O` : result.error ?? ""} warning={result.error} />
+        <ResultBox invalid={Boolean(result.error)} projectId={projectId} calculatorType="acn_water" formula="ACN mL = total mL x ACN%" inputs={{ totalVolumeMl: total, acnPercent: acn }} result={result.value !== undefined ? `${fmt(result.value.acnMl)} mL ACN + ${fmt(result.value.waterMl)} mL H2O` : result.error ?? ""} warning={result.error} />
       </div>
     </CalculatorCard>
   );
@@ -412,7 +413,7 @@ function AdditiveCalculator({ projectId }: { projectId: string | null }) {
         <InputWithUnit label="Total volume" value={total} onChange={setTotal} unit="mL" min={0} />
         <InputWithUnit label="Additive" value={percent} onChange={setPercent} unit="% v/v" min={0} />
         <FormulaBox formula="additive mL = total mL x (% / 100)" explanation="For 0.1% v/v in 1000 mL, add 1.0 mL additive. Confirm SOP and safety controls." />
-        <ResultBox projectId={projectId} calculatorType="additive_vv" formula="additive mL = total mL x (% / 100)" inputs={{ totalVolumeMl: total, additivePercentVv: percent }} result={result.value ? `${fmt(result.value)} mL additive` : result.error ?? ""} warning={result.error} />
+        <ResultBox invalid={Boolean(result.error)} projectId={projectId} calculatorType="additive_vv" formula="additive mL = total mL x (% / 100)" inputs={{ totalVolumeMl: total, additivePercentVv: percent }} result={result.value !== undefined ? `${fmt(result.value)} mL additive` : result.error ?? ""} warning={result.error} />
       </div>
     </CalculatorCard>
   );
@@ -428,7 +429,7 @@ function LcmsDilutionCalculator({ projectId }: { projectId: string | null }) {
         <InputWithUnit label="Sample volume" value={sample} onChange={setSample} unit="uL" min={0} />
         <InputWithUnit label="Solvent volume" value={solvent} onChange={setSolvent} unit="uL" min={0} />
         <FormulaBox formula="dilution factor = final volume / sample volume" explanation="Use LCMS-compatible solvent and confirm concentration range with the method." />
-        <ResultBox projectId={projectId} calculatorType="lcms_dilution" formula="dilution factor = final volume / sample volume" inputs={{ sampleVolumeUl: sample, solventVolumeUl: solvent }} result={result.value ? `${fmt(result.value.dilutionFactor)}x dilution, final ${fmt(result.value.finalVolumeUl)} uL` : result.error ?? ""} warning={result.error ?? pipetteWarning(sample)} />
+        <ResultBox invalid={Boolean(result.error)} projectId={projectId} calculatorType="lcms_dilution" formula="dilution factor = final volume / sample volume" inputs={{ sampleVolumeUl: sample, solventVolumeUl: solvent }} result={result.value !== undefined ? `${fmt(result.value.dilutionFactor)}x dilution, final ${fmt(result.value.finalVolumeUl)} uL` : result.error ?? ""} warning={result.error ?? pipetteWarning(sample)} />
       </div>
     </CalculatorCard>
   );
@@ -449,7 +450,7 @@ function HplcSolventCalculator({ projectId }: { projectId: string | null }) {
         <InputWithUnit label="Number of runs" value={runs} onChange={setRuns} unit="runs" min={0} />
         <InputWithUnit label="Extra solvent" value={extra} onChange={setExtra} unit="%" min={0} />
         <FormulaBox formula="total = flow x time x runs x (1 + extra%)" explanation="Include priming, equilibration, blanks, and SOP requirements separately if needed." />
-        <ResultBox projectId={projectId} calculatorType="hplc_solvent_consumption" formula="total = flow x time x runs x (1 + extra%)" inputs={{ flowRateMlMin: flow, runTimeMin: time, numberOfRuns: runs, extraPercent: extra }} result={result.value ? `${fmt(result.value.totalWithExtraMl)} mL total (${fmt(result.value.baseMl)} mL base)` : result.error ?? ""} warning={warning} />
+        <ResultBox invalid={Boolean(result.error)} projectId={projectId} calculatorType="hplc_solvent_consumption" formula="total = flow x time x runs x (1 + extra%)" inputs={{ flowRateMlMin: flow, runTimeMin: time, numberOfRuns: runs, extraPercent: extra }} result={result.value !== undefined ? `${fmt(result.value.totalWithExtraMl)} mL total (${fmt(result.value.baseMl)} mL base)` : result.error ?? ""} warning={warning} />
       </div>
     </CalculatorCard>
   );
@@ -469,7 +470,7 @@ function PeakResolutionCalculator({ projectId }: { projectId: string | null }) {
         <InputWithUnit label="Peak width 1" value={w1} onChange={setW1} unit="min" min={0} />
         <InputWithUnit label="Peak width 2" value={w2} onChange={setW2} unit="min" min={0} />
         <FormulaBox formula="Rs = 2(rt2 - rt1) / (w1 + w2)" explanation="Use consistent width definition from your chromatogram/report." />
-        <ResultBox projectId={projectId} calculatorType="peak_resolution" formula="Rs = 2(rt2 - rt1) / (w1 + w2)" inputs={{ rt1, rt2, width1: w1, width2: w2 }} result={result.value ? `Rs = ${fmt(result.value)}` : result.error ?? ""} warning={result.error} />
+        <ResultBox invalid={Boolean(result.error)} projectId={projectId} calculatorType="peak_resolution" formula="Rs = 2(rt2 - rt1) / (w1 + w2)" inputs={{ rt1, rt2, width1: w1, width2: w2 }} result={result.value !== undefined ? `Rs = ${fmt(result.value)}` : result.error ?? ""} warning={result.error} />
       </div>
     </CalculatorCard>
   );
@@ -483,7 +484,7 @@ function PipetteCalculator({ projectId }: { projectId: string | null }) {
       <div className="grid gap-3">
         <InputWithUnit label="Volume" value={volume} onChange={setVolume} unit="uL" min={0} />
         <FormulaBox formula="range by uL: 0.5-10 P10, 10-20 P20, 20-200 P200, 200-1000 P1000" explanation="Below 0.5 uL is usually too small; above 1000 uL should use a larger-volume strategy." />
-        <ResultBox projectId={projectId} calculatorType="pipette_range" formula="range by uL thresholds" inputs={{ volumeUl: volume }} result={result} warning={pipetteWarning(volume)} />
+        <ResultBox invalid={result === "invalid volume"} projectId={projectId} calculatorType="pipette_range" formula="range by uL thresholds" inputs={{ volumeUl: volume }} result={result} warning={pipetteWarning(volume)} />
       </div>
     </CalculatorCard>
   );

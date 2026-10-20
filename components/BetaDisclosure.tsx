@@ -1,0 +1,4 @@
+import Link from "next/link";
+export function BetaDisclosure() {
+  return <aside aria-label="Researcher beta disclosure" className="border-b border-copper/20 bg-paper px-5 py-3 text-xs leading-5 text-ink/70"><div className="mx-auto max-w-7xl"><strong className="font-semibold text-copper">Researcher beta.</strong> Early research-support prototype; not a validated laboratory safety or experimental decision system. Independently verify calculations, extracted values and instructions. Use only public, synthetic or explicitly authorized data; do not upload confidential or unpublished research. Saved records are browser-local and may be lost if storage is cleared. AI inputs may be processed by Google Gemini. <Link className="underline" href="/privacy">Privacy and processing</Link>.</div></aside>;
+}

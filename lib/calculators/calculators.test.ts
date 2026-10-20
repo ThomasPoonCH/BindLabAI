@@ -89,7 +89,7 @@ describe("expanded calculator suite", () => {
     expect(calculateEquivalents(0.002, 0.001)).toBeCloseTo(2);
     expect(calculatePercentYield(0.08, 0.1)).toBeCloseTo(80);
     expect(identifyLimitingReagent([
-      { name: "A", moles: 0.001 },
+      { name: "A", moles: 0.001, stoichiometry: 1 },
       { name: "B", moles: 0.003, stoichiometry: 2 }
     ]).name).toBe("A");
   });

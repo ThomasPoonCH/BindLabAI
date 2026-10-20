@@ -18,3 +18,5 @@ temp
 credentials*.json
 service-account*.json
 .DS_Store
+
+.next-dev

@@ -24,7 +24,8 @@ const contentSecurityPolicy = [
   "media-src 'self'",
   "worker-src 'self' blob:",
   "frame-src 'none'",
-  "upgrade-insecure-requests",
+  // Safari upgrades localhost asset URLs to HTTPS, but next dev serves HTTP.
+  ...(process.env.NODE_ENV === "production" ? ["upgrade-insecure-requests"] : []),
 ].join("; ");
 
 const securityHeaders = [
@@ -40,6 +41,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Keep development assets separate from production builds and their manifests.
+  distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",
   productionBrowserSourceMaps: false,
   poweredByHeader: false,
   async headers() {

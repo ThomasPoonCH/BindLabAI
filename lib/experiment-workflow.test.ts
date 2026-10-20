@@ -12,3 +12,16 @@ describe("canonical experiment workflow", () => {
   it("filters malformed local records without dropping valid ones", () => { expect(parseStoredExperiments([record(), { nope: true }])).toHaveLength(1); });
   it("migrates older canonical records missing condition units", () => { const older = record() as unknown as { conditions: Record<string, unknown> }; delete older.conditions.solventVolumeUnit; delete older.conditions.targetConcentrationUnit; delete older.conditions.temperatureUnit; delete older.conditions.durationUnit; delete older.conditions.vesselCapacity; delete older.conditions.vesselCapacityUnit; expect(parseStoredExperiments([older])).toHaveLength(1); });
 });
+
+it("detects temperature and duration conflicts without replacing researcher values", () => {
+  const current = record();
+  current.conditions.temperature = "25";
+  current.conditions.duration = "2";
+  const incoming = record();
+  incoming.conditions.temperature = "80";
+  incoming.conditions.duration = "24";
+  expect(findConflicts(current, incoming).map(c => c.field)).toEqual(expect.arrayContaining(["temperature", "duration"]));
+  const merged = mergeDraft(current, incoming, { temperature: "keep", duration: "keep" });
+  expect(merged.conditions.temperature).toBe("25");
+  expect(merged.conditions.duration).toBe("2");
+});

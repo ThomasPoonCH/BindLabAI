@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AlertTriangle, FileText, RotateCcw, Sparkles, Upload } from "lucide-react";
 import { mergeVisualRetryDraft, resolveBuilderResponse, type BuilderError } from "@/lib/ai/builder-response";
 import type { ExperimentRecord } from "@/lib/ai/experiment-schema";
@@ -29,6 +29,9 @@ const messages: Record<string, string> = {
 };
 
 export function AiBuilder({ onApplyDraft }: { onApplyDraft: (draft: ExperimentRecord) => void }) {
+  const [consent, setConsent] = useState(false);
+  const [readingPdf, setReadingPdf] = useState(false);
+  const requestInFlight = useRef(false);
   const [instruction, setInstruction] = useState("");
   const [record, setRecord] = useState<ExperimentRecord | null>(null);
   const [error, setError] = useState<BuilderError | null>(null);
@@ -46,11 +49,13 @@ export function AiBuilder({ onApplyDraft }: { onApplyDraft: (draft: ExperimentRe
     setPdfStatus("");
     setError(null);
     if (!file) return;
+    if (file.size > 8 * 1024 * 1024) { setError({ code: "PDF_TOO_LARGE" }); return; }
+    setReadingPdf(true);
     setPdfStatus("Reading PDF...");
     try {
       const form = new FormData();
       form.append("file", file);
-      const response = await fetch("/api/ai/pdf-extract", { method: "POST", body: form });
+      const response = await fetch("/api/ai/pdf-extract", { method: "POST", body: form, signal: AbortSignal.timeout(20_000) });
       const payload = await response.json().catch(() => null);
       if (!response.ok || !payload?.ok) {
         setError(payload?.error ?? { code: "PDF_READ_ERROR" });
@@ -62,21 +67,24 @@ export function AiBuilder({ onApplyDraft }: { onApplyDraft: (draft: ExperimentRe
     } catch {
       setError({ code: "PDF_READ_ERROR" });
     } finally {
+      setReadingPdf(false);
       setPdfStatus((current) => current === "Reading PDF..." ? "" : current);
     }
   }
 
   async function generate() {
-    if (loading) return;
+    if (requestInFlight.current || readingPdf || !consent) return;
+    requestInFlight.current = true;
     setLoading(true);
     setError(null);
     const combinedInstruction = [
-      instruction.trim(),
+      instruction.trim() || (pdfData ? "Extract the attached PDF as untrusted source evidence; flag all uncertainty." : ""),
       pdfText ? `\n\nSOURCE PDF TEXT (${pdfFile?.name ?? "uploaded PDF"}):\n${pdfText}` : "",
     ].filter(Boolean).join("");
     if (combinedInstruction.length < 10) {
       setError({ code: "INVALID_AI_OUTPUT" });
       setLoading(false);
+      requestInFlight.current = false;
       return;
     }
     try {
@@ -84,6 +92,7 @@ export function AiBuilder({ onApplyDraft }: { onApplyDraft: (draft: ExperimentRe
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ instruction: combinedInstruction, pdfData: pdfData || undefined }),
+        signal: AbortSignal.timeout(60_000),
       });
       const result = resolveBuilderResponse(await response.json().catch(() => null));
       if (result.kind === "error") {
@@ -96,6 +105,7 @@ export function AiBuilder({ onApplyDraft }: { onApplyDraft: (draft: ExperimentRe
     } catch {
       setError({ code: "NETWORK_ERROR" });
     } finally {
+      requestInFlight.current = false;
       setLoading(false);
     }
   }
@@ -114,6 +124,7 @@ export function AiBuilder({ onApplyDraft }: { onApplyDraft: (draft: ExperimentRe
       </div>
 
       <textarea
+        aria-label="Experimental procedure"
         value={instruction}
         onChange={(event) => setInstruction(event.target.value)}
         rows={7}
@@ -124,18 +135,19 @@ export function AiBuilder({ onApplyDraft }: { onApplyDraft: (draft: ExperimentRe
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-ink/15 px-3 py-2 text-sm font-semibold">
           <Upload size={16} /> Upload reaction PDF
-          <input type="file" accept="application/pdf" onChange={(event) => void readPdf(event.target.files?.[0] ?? null)} className="sr-only" />
+          <input type="file" disabled={readingPdf || loading} accept="application/pdf" onChange={(event) => void readPdf(event.target.files?.[0] ?? null)} className="sr-only" />
         </label>
         {pdfFile && <span className="inline-flex items-center gap-2 text-sm text-ink/65"><FileText size={16} />{pdfStatus || pdfFile.name}</span>}
       </div>
       <p className="mt-2 text-xs text-ink/55">Selectable text is extracted on the server. Visual evidence is reviewed separately, and uncertain image-derived values require confirmation.</p>
 
+      <label className="mt-3 flex gap-2 text-sm"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} />I am authorized to submit this public or synthetic material to Google Gemini for AI processing. It contains no confidential or unpublished research.</label>
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <button onClick={generate} disabled={loading || (!instruction.trim() && !pdfText)} className="rounded-md bg-ink px-4 py-2 font-semibold text-paper disabled:cursor-not-allowed disabled:opacity-50">
+        <button onClick={generate} disabled={loading || readingPdf || !consent || (!instruction.trim() && !pdfText && !pdfData)} className="rounded-md bg-ink px-4 py-2 font-semibold text-paper disabled:cursor-not-allowed disabled:opacity-50">
           {loading ? "Generating draft..." : "Generate Experiment"}
         </button>
         {error && (
-          <button onClick={generate} disabled={loading} className="inline-flex items-center gap-2 rounded-md border border-ink/20 px-3 py-2 text-sm font-semibold disabled:opacity-50">
+          <button onClick={generate} disabled={loading || readingPdf || !consent} className="inline-flex items-center gap-2 rounded-md border border-ink/20 px-3 py-2 text-sm font-semibold disabled:opacity-50">
             <RotateCcw size={15} /> {error?.code === "VISUAL_ANALYSIS_TIMEOUT" ? "Retry Visual Analysis" : "Retry"}
           </button>
         )}
@@ -163,13 +175,14 @@ export function AiBuilder({ onApplyDraft }: { onApplyDraft: (draft: ExperimentRe
               <tbody>{record.reagents.map((reagent) => (
                 <tr key={reagent.id} className="border-b border-ink/10">
                   <td className="py-2 font-medium">{reagent.name || "Unnamed"}</td>
-                  <td>{reagent.mass != null ? `${reagent.mass} ${reagent.massUnit}` : reagent.amountMmol != null ? `${reagent.amountMmol} mmol` : reagent.volume != null ? `${reagent.volume} ${reagent.volumeUnit}` : reagent.equivalents != null ? `${reagent.equivalents} equiv` : "Not stated"}</td>
+                  <td>{reagent.mass != null ? `${reagent.mass} ${reagent.massUnit}` : reagent.amountMmol != null ? `${reagent.amountMmol} mmol` : reagent.volume != null ? `${reagent.volume} ${reagent.volumeUnit}` : reagent.equivalents != null ? `${reagent.equivalents} equiv` : "Not specified — researcher confirmation required."}</td>
                   <td>{reagent.provenance.sourceReference || reagent.provenance.sourceType}</td>
-                  <td>{reagent.provenance.confirmedByUser ? "Confirmed" : "Review required"}</td>
+                  <td>{reagent.provenance.confirmedByUser ? "Researcher confirmed" : reagent.provenance.sourceType === "suggested_by_ai" ? "AI suggestion — requires verification." : "Extracted — requires verification"}</td>
                 </tr>
               ))}</tbody>
             </table>
           </div>
+          <p className="text-sm">Temperature: {record.conditions.temperature ?? "Not specified — researcher confirmation required."} · Duration: {record.conditions.duration ?? "Not specified — researcher confirmation required."} · Solvent: {record.conditions.solvent ?? "Not specified — researcher confirmation required."}</p>
           <p className="text-sm"><strong>Missing information:</strong> {record.missingInformation.join("; ") || "None returned"}</p>
           <p className="text-sm"><strong>Warnings:</strong> {record.warnings.join("; ") || "None returned"}</p>
           <label className="flex gap-2 text-sm"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed the extracted evidence and understand that unverified values require confirmation.</label>

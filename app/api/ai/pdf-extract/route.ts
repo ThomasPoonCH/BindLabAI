@@ -21,7 +21,9 @@ function looksLikePdf(buffer: Buffer) {
 
 function parseWithTimeout(buffer: Buffer) {
   return Promise.race([
-    pdf(buffer),
+    // PDF.js 1.x can misread Node Buffer slices; copy to a plain Uint8Array.
+    // pdf-parse accepts typed arrays at runtime despite its narrower third-party typings.
+    pdf(new Uint8Array(buffer) as unknown as Buffer),
     new Promise<never>((_, reject) => setTimeout(() => reject(new Error("PDF_PROCESSING_TIMEOUT")), PDF_PROCESSING_TIMEOUT_MS)),
   ]);
 }

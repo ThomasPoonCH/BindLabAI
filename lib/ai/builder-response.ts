@@ -1,3 +1,4 @@
+import { initializeUntrustedEvidence } from "../experiment-evidence";
 import { experimentSchema, type ExperimentRecord } from "./experiment-schema";
 
 export type BuilderError = {
@@ -20,7 +21,12 @@ export function resolveBuilderResponse(payload: unknown): BuilderResult {
     if (!parsed.success) return { kind: "error", error: { code: "SCHEMA_VALIDATION_ERROR" } };
     return {
       kind: "draft",
-      draft: parsed.data,
+      draft: initializeUntrustedEvidence({
+        ...parsed.data,
+        experimentStatus: "needs_review",
+        reagents: parsed.data.reagents.map(reagent => ({ ...reagent, provenance: { ...reagent.provenance, confirmedByUser: false, sourceType: reagent.provenance.sourceType === "suggested_by_ai" ? "suggested_by_ai" : "imported_from_document" } })),
+        conditions: { ...parsed.data.conditions, provenance: { ...parsed.data.conditions.provenance, confirmedByUser: false, sourceType: "imported_from_document" } },
+      }),
       warning: data.partialDraft
         ? ((data.error && typeof data.error === "object" ? data.error : data) as BuilderError)
         : null,

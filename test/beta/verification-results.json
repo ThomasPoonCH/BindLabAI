@@ -1,0 +1,226 @@
+{
+  "date": "2026-10-20",
+  "timezone": "Asia/Hong_Kong",
+  "unitTests": {
+    "passed": 204,
+    "failed": 0,
+    "files": 32
+  },
+  "typescript": "passed",
+  "lint": {
+    "errors": 0,
+    "warnings": 4
+  },
+  "productionBuild": "passed after Safari/development-cache changes",
+  "browser": {
+    "checks": [
+      {
+        "name": "Landing page \u2192 dashboard \u2192 new experiment",
+        "status": "passed"
+      },
+      {
+        "name": "Manual builder, fictional example, field confirmation, rescaling and CSV",
+        "status": "passed"
+      },
+      {
+        "name": "Draft save, reload and independent record navigation",
+        "status": "passed"
+      },
+      {
+        "name": "Backup import creates a copy; malformed import rejected",
+        "status": "passed"
+      },
+      {
+        "name": "Parts calculator units and invalid-input explanations",
+        "status": "passed"
+      },
+      {
+        "name": "LC-MS/HPLC workspace and calculator sections render",
+        "status": "passed"
+      },
+      {
+        "name": "AI mocked success, missing fields, consent and apply",
+        "status": "passed"
+      },
+      {
+        "name": "AI malformed response preserves inputs and ends loading",
+        "status": "passed"
+      },
+      {
+        "name": "Feedback failure, explicit download and acknowledged mocked delivery",
+        "status": "passed"
+      },
+      {
+        "name": "Numeric calculator UI distinguishes zero, missing inputs and invalid calculations",
+        "status": "passed"
+      },
+      {
+        "name": "Browser PDF upload handles table, malformed and image-only files",
+        "status": "passed"
+      },
+      {
+        "name": "Configured email feedback fallback is available without claiming delivery",
+        "status": "passed"
+      },
+      {
+        "name": "Desktop and mobile layouts have no page overflow",
+        "status": "passed"
+      },
+      {
+        "name": "Live Bench demo loads without runtime exceptions",
+        "status": "passed"
+      },
+      {
+        "name": "Stale-tab save protection and quota failure preserve the open form",
+        "status": "passed"
+      },
+      {
+        "name": "Normal browser restart retains a saved record in an isolated disk profile",
+        "status": "passed"
+      },
+      {
+        "name": "Browser runtime error audit",
+        "status": "passed"
+      }
+    ],
+    "errors": [],
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 502 (Bad Gateway)",
+      "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+      "Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)"
+    ],
+    "passed": 17,
+    "failed": 0
+  },
+  "liveAcceptance": [
+    {
+      "name": "complete procedure",
+      "status": "unavailable",
+      "httpStatus": 401,
+      "code": "AUTHENTICATION_FAILED"
+    },
+    {
+      "name": "missing quantities",
+      "status": "unavailable",
+      "httpStatus": 401,
+      "code": "AUTHENTICATION_FAILED"
+    },
+    {
+      "name": "conflicting conditions",
+      "status": "unavailable",
+      "httpStatus": 401,
+      "code": "AUTHENTICATION_FAILED"
+    },
+    {
+      "name": "mixed units",
+      "status": "unavailable",
+      "httpStatus": 401,
+      "code": "AUTHENTICATION_FAILED"
+    },
+    {
+      "name": "table and multiple steps PDF",
+      "status": "unavailable",
+      "httpStatus": 401,
+      "code": "AUTHENTICATION_FAILED"
+    },
+    {
+      "name": "scanned PDF",
+      "status": "unavailable",
+      "httpStatus": 401,
+      "code": "AUTHENTICATION_FAILED"
+    },
+    {
+      "name": "prompt injection in source",
+      "status": "unavailable",
+      "httpStatus": 401,
+      "code": "AUTHENTICATION_FAILED"
+    },
+    {
+      "name": "malformed PDF",
+      "status": "passed",
+      "httpStatus": 422
+    }
+  ],
+  "excel": {
+    "status": "passed with UTF-8 comma import",
+    "columns": 8,
+    "verifiedCell": "C29",
+    "verifiedValue": 450,
+    "unit": "mg"
+  },
+  "feedbackBackend": {
+    "status": 503,
+    "code": "FEEDBACK_UNAVAILABLE",
+    "receiptVerified": false,
+    "storageConfigured": false
+  },
+  "emailFallback": "configured; send and recipient receipt not executed",
+  "secretScans": {
+    "repositoryFindings": 0,
+    "clientFiles": 109,
+    "clientFindings": 0,
+    "logFiles": 28,
+    "logFindings": 0
+  },
+  "deployment": {
+    "committed": false,
+    "pushed": false,
+    "merged": false,
+    "deployed": false
+  },
+  "liveAi": [
+    {
+      "name": "complete procedure",
+      "status": "unavailable",
+      "httpStatus": 401,
+      "code": "AUTHENTICATION_FAILED"
+    },
+    {
+      "name": "missing quantities",
+      "status": "unavailable",
+      "httpStatus": 401,
+      "code": "AUTHENTICATION_FAILED"
+    },
+    {
+      "name": "conflicting conditions",
+      "status": "unavailable",
+      "httpStatus": 401,
+      "code": "AUTHENTICATION_FAILED"
+    },
+    {
+      "name": "mixed units",
+      "status": "unavailable",
+      "httpStatus": 401,
+      "code": "AUTHENTICATION_FAILED"
+    },
+    {
+      "name": "table and multiple steps PDF",
+      "status": "unavailable",
+      "httpStatus": 401,
+      "code": "AUTHENTICATION_FAILED"
+    },
+    {
+      "name": "scanned PDF",
+      "status": "unavailable",
+      "httpStatus": 401,
+      "code": "AUTHENTICATION_FAILED"
+    },
+    {
+      "name": "prompt injection in source",
+      "status": "unavailable",
+      "httpStatus": 401,
+      "code": "AUTHENTICATION_FAILED"
+    },
+    {
+      "name": "malformed PDF",
+      "status": "passed",
+      "httpStatus": 422
+    }
+  ],
+  "developmentCredential": "Existing local credential explicitly approved as development-only by user; live requests returned authentication failure",
+  "recheckFixes": [
+    "Exclude generated .next-dev from ESLint",
+    "Include engine warnings in CSV review rows",
+    "Label missing calculated total volume as Missing / Unverified"
+  ]
+}

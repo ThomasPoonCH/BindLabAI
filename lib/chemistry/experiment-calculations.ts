@@ -41,8 +41,9 @@ export function calculateExperiment(record: ExperimentRecord) {
 
 export function theoreticalProduct(record: ExperimentRecord) {
   const plan = calculateExperiment(record);
-  if (!record.productStoichiometry || plan.referenceAmountUmol === null) return null;
+  if (!record.productStoichiometry || record.fieldEvidence?.productStoichiometry?.status !== "researcher_confirmed" || plan.referenceAmountUmol === null) return null;
   const amountUmol = plan.referenceAmountUmol * record.productStoichiometry;
-  const massMg = record.expectedMolecularWeight ? amountUmol * record.expectedMolecularWeight / 1000 : null;
-  return { amountUmol, massMg };
+  if (!Number.isFinite(amountUmol)) return null;
+  const massMg = record.expectedMolecularWeight && record.fieldEvidence?.expectedMolecularWeight?.status === "researcher_confirmed" ? amountUmol * record.expectedMolecularWeight / 1000 : null;
+  return { amountUmol, massMg: massMg !== null && Number.isFinite(massMg) ? massMg : null };
 }

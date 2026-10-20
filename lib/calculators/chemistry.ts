@@ -1,5 +1,7 @@
-import { assertPositive } from "./validation";
+import { assertPositive, assertNonNegative } from "./validation";
 import { convertUnits } from "./engine";
+
+function finiteResult(value: number) { if (!Number.isFinite(value)) throw new Error("Calculation is outside the supported numerical range."); return value; }
 
 export type VolumeUnit = "uL" | "mL" | "L";
 export type ConcentrationUnit = "M" | "mM" | "uM" | "nM";
@@ -13,34 +15,39 @@ export type MixtureReagentInput = {
 };
 
 export function calculateMolarity(moles: number, volumeL: number) {
+  assertNonNegative(moles, "moles");
   assertPositive(volumeL, "volumeL");
-  return moles / volumeL;
+  return finiteResult(moles / volumeL);
 }
 
 export function calculateMolesFromMolarity(concentrationM: number, volumeL: number) {
   assertPositive(concentrationM, "concentrationM");
   assertPositive(volumeL, "volumeL");
-  return concentrationM * volumeL;
+  return finiteResult(concentrationM * volumeL);
 }
 
 export function calculateVolumeFromMolesAndConcentration(moles: number, concentrationM: number) {
+  assertNonNegative(moles, "moles");
   assertPositive(concentrationM, "concentrationM");
-  return moles / concentrationM;
+  return finiteResult(moles / concentrationM);
 }
 
 export function calculateMassFromMoles(moles: number, molecularWeight: number) {
+  assertNonNegative(moles, "moles");
   assertPositive(molecularWeight, "molecularWeight");
-  return moles * molecularWeight;
+  return finiteResult(moles * molecularWeight);
 }
 
 export function calculateMolesFromMass(massG: number, molecularWeight: number) {
+  assertNonNegative(massG, "massG");
   assertPositive(molecularWeight, "molecularWeight");
-  return massG / molecularWeight;
+  return finiteResult(massG / molecularWeight);
 }
 
 export function calculateMolecularWeightFromMassAndMoles(massG: number, moles: number) {
+  assertNonNegative(massG, "massG");
   assertPositive(moles, "moles");
-  return massG / moles;
+  return finiteResult(massG / moles);
 }
 
 export function calculateDilutionVolume(C1: number, C2: number, V2: number) {
@@ -48,7 +55,7 @@ export function calculateDilutionVolume(C1: number, C2: number, V2: number) {
   assertPositive(C2, "C2");
   assertPositive(V2, "V2");
   if (C2 > C1) throw new Error("C2 cannot be greater than C1 for a simple dilution");
-  return (C2 * V2) / C1;
+  return finiteResult((C2 * V2) / C1);
 }
 
 export function calculateFinalDilutionConcentration(C1: number, V1: number, V2: number) {
@@ -56,18 +63,19 @@ export function calculateFinalDilutionConcentration(C1: number, V1: number, V2: 
   assertPositive(V1, "V1");
   assertPositive(V2, "V2");
   if (V1 > V2) throw new Error("V1 cannot be greater than V2");
-  return (C1 * V1) / V2;
+  return finiteResult((C1 * V1) / V2);
 }
 
 export function calculateVolumeFromMassAndDensity(massG: number, densityGPerMl: number) {
+  assertNonNegative(massG, "massG");
   assertPositive(densityGPerMl, "densityGPerMl");
-  return massG / densityGPerMl;
+  return finiteResult(massG / densityGPerMl);
 }
 
 export function calculateMassFromVolumeAndDensity(volumeMl: number, densityGPerMl: number) {
   assertPositive(volumeMl, "volumeMl");
   assertPositive(densityGPerMl, "densityGPerMl");
-  return volumeMl * densityGPerMl;
+  return finiteResult(volumeMl * densityGPerMl);
 }
 
 export function convertVolumeToL(value: number, unit: VolumeUnit) {

@@ -43,7 +43,7 @@ export function BenchModeDemo() {
       skipInitialSave.current = false;
       return;
     }
-    saveBenchSession(session);
+    try { saveBenchSession(session); } catch { setToast("Bench changes have not been saved. Browser storage may be full or unavailable. Keep this page open and try again."); }
   }, [hydrated, session]);
 
   useEffect(() => {
