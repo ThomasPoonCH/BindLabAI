@@ -26,7 +26,7 @@ function pageReference(text: string, name: string) {
 
 function quantityNearName(text: string, name: string) {
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = text.match(new RegExp(`${escaped}[^\\n]{0,100}?(\\d+(?:\\.\\d+)?)\\s*(mg|g|mmol|mL|uL|µL|equiv|eq)\\b`, "i"));
+  const match = text.match(new RegExp(`${escaped}\\b[\\s(:=]*(\\d+(?:\\.\\d+)?)\\s*(mg|g|mmol|mL|uL|µL|equiv|eq)\\b`, "i"));
   if (!match) return {};
   const value = Number(match[1]);
   const unit = match[2].toLowerCase();

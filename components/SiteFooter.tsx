@@ -1,5 +1,6 @@
 "use client";
 
+import { Feedback } from "./Feedback";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -25,10 +26,12 @@ export function SiteFooter() {
           </p>
         </div>
         <nav aria-label="Legal" className={`mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm ${isHome ? "text-paper/65" : "text-ink/65"}`}>
+          <Link href="/dashboard">Researcher dashboard</Link>
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>
           <Link href="/data-handling">Data Handling</Link>
         </nav>
+        <Feedback />
       </div>
     </footer>
   );

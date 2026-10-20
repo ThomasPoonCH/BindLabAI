@@ -5,13 +5,18 @@ const supabaseOrigin = (() => {
   catch { return ""; }
 })();
 const connectSources = ["'self'", supabaseOrigin, supabaseOrigin.replace(/^http/, "ws")].filter(Boolean).join(" ");
+const scriptSources = process.env.NODE_ENV === "production"
+  ? "'self' 'unsafe-inline'"
+  // Next.js React Refresh evaluates development bundles. Keep this exception
+  // out of production so the deployed CSP never grants unsafe-eval.
+  : "'self' 'unsafe-inline' 'unsafe-eval'";
 const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
   "object-src 'none'",
-  "script-src 'self' 'unsafe-inline'",
+  `script-src ${scriptSources}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
@@ -19,7 +24,8 @@ const contentSecurityPolicy = [
   "media-src 'self'",
   "worker-src 'self' blob:",
   "frame-src 'none'",
-  "upgrade-insecure-requests",
+  // Safari upgrades localhost asset URLs to HTTPS, but next dev serves HTTP.
+  ...(process.env.NODE_ENV === "production" ? ["upgrade-insecure-requests"] : []),
 ].join("; ");
 
 const securityHeaders = [
@@ -35,6 +41,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Keep development assets separate from production builds and their manifests.
+  distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",
   productionBrowserSourceMaps: false,
   poweredByHeader: false,
   async headers() {

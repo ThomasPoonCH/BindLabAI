@@ -60,9 +60,9 @@ export default async function DashboardPage() {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-copper">BindLab workflow cockpit</p>
-              <h1 className="mt-2 text-3xl font-semibold">AI chemistry lab workflow MVP</h1>
+              <h1 className="mt-2 text-3xl font-semibold">AI-powered experiment execution and laboratory memory platform</h1>
               <p className="mt-3 max-w-3xl leading-7 text-ink/68">
-                Demonstrate the full competition workflow: reaction entry, deterministic reagent quantities, missing data and safety checks, draft protocol generation, LCMS preparation, and experiment export.
+                Explore the complete workflow from scientific input to a structured, calculation-ready experiment, with deterministic quantity checks, guided execution, analysis planning, and traceable records.
               </p>
             </div>
             <Link href="/dashboard/reaction/new" className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 font-semibold text-paper">

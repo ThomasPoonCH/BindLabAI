@@ -67,16 +67,36 @@ export function privacyPreservingClientId(request: Request) {
 }
 
 export async function readJsonWithLimit(request: Request, maxBytes: number) {
+  const contentType = request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase();
+  if (contentType !== "application/json") throw new UnsupportedContentTypeError();
   const declared = Number(request.headers.get("content-length") ?? 0);
   if (declared > maxBytes) throw new RequestLimitError();
   const text = await request.text();
   if (Buffer.byteLength(text, "utf8") > maxBytes) throw new RequestLimitError();
-  return JSON.parse(text) as unknown;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    throw new MalformedJsonError();
+  }
 }
 
 export class RequestLimitError extends Error {
   constructor() {
     super("Request body is too large");
     this.name = "RequestLimitError";
+  }
+}
+
+export class UnsupportedContentTypeError extends Error {
+  constructor() {
+    super("JSON content type is required");
+    this.name = "UnsupportedContentTypeError";
+  }
+}
+
+export class MalformedJsonError extends Error {
+  constructor() {
+    super("Request body is not valid JSON");
+    this.name = "MalformedJsonError";
   }
 }

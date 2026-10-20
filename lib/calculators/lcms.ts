@@ -1,4 +1,4 @@
-import { assertNonNegative, assertPositive } from "./validation";
+import { assertNonNegative, assertPositive, finiteResult } from "./validation";
 
 export function calculateAcnWaterVolumes(totalVolumeMl: number, acnPercent: number) {
   assertPositive(totalVolumeMl, "totalVolumeMl");
@@ -18,20 +18,21 @@ export function calculateMobilePhaseConsumption(flowRateMlMin: number, runTimeMi
   assertPositive(runTimeMin, "runTimeMin");
   assertPositive(numberOfRuns, "numberOfRuns");
   assertNonNegative(extraPercent, "extraPercent");
-  const baseMl = flowRateMlMin * runTimeMin * numberOfRuns;
+  if (!Number.isInteger(numberOfRuns)) throw new Error("Number of runs must be a whole number.");
+  const baseMl = finiteResult(flowRateMlMin * runTimeMin * numberOfRuns);
   return {
     baseMl,
-    totalWithExtraMl: baseMl * (1 + extraPercent / 100)
+    totalWithExtraMl: finiteResult(baseMl * (1 + extraPercent / 100))
   };
 }
 
 export function calculateLcmsDilution(sampleVolumeUl: number, solventVolumeUl: number) {
   assertPositive(sampleVolumeUl, "sampleVolumeUl");
   assertNonNegative(solventVolumeUl, "solventVolumeUl");
-  const finalVolumeUl = sampleVolumeUl + solventVolumeUl;
+  const finalVolumeUl = finiteResult(sampleVolumeUl + solventVolumeUl);
   return {
     finalVolumeUl,
-    dilutionFactor: finalVolumeUl / sampleVolumeUl
+    dilutionFactor: finiteResult(finalVolumeUl / sampleVolumeUl)
   };
 }
 
@@ -46,11 +47,13 @@ export function calculateFinalSampleConcentration(initialConcentration: number, 
 export function calculatePeakResolution(rt1: number, rt2: number, width1: number, width2: number) {
   assertPositive(width1, "width1");
   assertPositive(width2, "width2");
-  return (2 * Math.abs(rt2 - rt1)) / (width1 + width2);
+  assertNonNegative(rt1, "rt1"); assertNonNegative(rt2, "rt2");
+  return finiteResult((2 * Math.abs(rt2 - rt1)) / (width1 + width2));
 }
 
 export function calculateRetentionTimeDifference(rt1: number, rt2: number) {
-  return Math.abs(rt2 - rt1);
+  assertNonNegative(rt1, "rt1"); assertNonNegative(rt2, "rt2");
+  return finiteResult(Math.abs(rt2 - rt1));
 }
 
 export function generateGradientTable(startPercentB: number, endPercentB: number, gradientTimeMin: number, holdTimeMin: number, reequilibrationTimeMin: number) {
@@ -65,7 +68,7 @@ export function generateGradientTable(startPercentB: number, endPercentB: number
     { timeMin: gradientTimeMin, percentB: endPercentB, note: "End gradient" },
     { timeMin: gradientTimeMin + holdTimeMin, percentB: endPercentB, note: "End hold" },
     { timeMin: gradientTimeMin + holdTimeMin + 0.1, percentB: startPercentB, note: "Return to start" },
-    { timeMin: gradientTimeMin + holdTimeMin + reequilibrationTimeMin, percentB: startPercentB, note: "Ready for next run" }
+    { timeMin: finiteResult(gradientTimeMin + holdTimeMin + 0.1 + reequilibrationTimeMin), percentB: startPercentB, note: "Ready for next run" }
   ];
 }
 

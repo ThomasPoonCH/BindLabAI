@@ -1,3 +1,4 @@
+import { csvCell } from "@/lib/csv";
 import { assertPositive } from "./validation";
 
 export type ReagentRole = "reactant" | "coupling reagent" | "base" | "acid" | "additive" | "solvent";
@@ -108,6 +109,7 @@ export function calculateReactionPlan(input: ReactionPlanInput): ReactionPlanOut
     const volumeUl = reagent.state === "liquid" ? reagent.liquidVolumeUl : reagent.state === "solution" ? reagent.stockSolutionVolumeUl : null;
     return sum + (volumeUl ?? 0) / 1000;
   }, 0);
+  if (reagentLiquidVolumeMl > totalReactionVolumeMl) missingData.push("Supplied liquid volumes exceed the target final reaction volume.");
   const approximateSolventVolumeMl = Math.max(totalReactionVolumeMl - reagentLiquidVolumeMl, 0);
 
   const safetyText = [input.solvent, input.notes, ...input.reagents.map((reagent) => reagent.name)].join(" ").toLowerCase();
@@ -169,7 +171,7 @@ function getDisplayAmount(state: ReagentState, massMg: number | null, liquidVolu
 }
 
 function validatePositive(value: number | undefined, label: string, missingData: string[]) {
-  if (value === undefined || value <= 0 || Number.isNaN(value)) missingData.push(`${label}: zero, negative, or missing value.`);
+  if (value === undefined || value <= 0 || !Number.isFinite(value)) missingData.push(`${label}: zero, negative, or missing value.`);
 }
 
 export function calculateLcmsMasses(productMw: number, observedMz = 0, tolerance = 0.5): LcmsExpectedMass[] {
@@ -192,11 +194,13 @@ export function calculateLcmsMasses(productMw: number, observedMz = 0, tolerance
 }
 
 export function makeLcmsSamplePrep(crudeVolumeUl: number, finalVolumeUl: number) {
+  if (!Number.isFinite(crudeVolumeUl) || !Number.isFinite(finalVolumeUl) || crudeVolumeUl <= 0 || finalVolumeUl < crudeVolumeUl) return "LCMS preparation requires a positive sample volume and a final volume at least as large. Confirm diluent compatibility and method before use.";
   const diluentVolume = Math.max(finalVolumeUl - crudeVolumeUl, 0);
   return `Add ${formatNumber(crudeVolumeUl)} uL crude reaction mixture to ${formatNumber(diluentVolume)} uL ACN:H2O 1:1 to make ${formatNumber(finalVolumeUl)} uL final volume. Mix thoroughly. Filter if required before LCMS injection.`;
 }
 
 export function generateProtocolSteps(input: ReactionPlanInput, output: Omit<ReactionPlanOutput, "protocolSteps">) {
+  if (output.missingData.length) return ["Incomplete draft — researcher confirmation required. No executable protocol is established.", ...output.missingData];
   return [
     "Draft protocol - verify with supervisor before use.",
     `Label a clean reaction vessel for ${input.reactionName || "the planned reaction"}.`,
@@ -223,7 +227,7 @@ export function makeReagentCsv(reagents: ReactionReagentOutput[]) {
     reagent.stockSolutionVolumeUl ?? "",
     reagent.displayAmount
   ]);
-  return [header, ...rows].map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\n");
+  return [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
 }
 
 function formatNumber(value: number, digits = 4) {

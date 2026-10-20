@@ -39,3 +39,17 @@ describe("experiment builder response handling", () => {
     expect(merged.reagents.map((item) => item.name)).toContain("DMF");
   });
 });
+
+it("never accepts AI self-confirmation or ready status", () => {
+  const draft = buildDeterministicTextDraft("Add DMF.");
+  draft.experimentStatus = "ready_to_run";
+  draft.reagents[0].provenance.confirmedByUser = true;
+  draft.reagents[0].provenance.sourceType = "experimentally_confirmed";
+  const result = resolveBuilderResponse({ draft });
+  expect(result.kind).toBe("draft");
+  if (result.kind === "draft") {
+    expect(result.draft.experimentStatus).toBe("needs_review");
+    expect(result.draft.reagents[0].provenance.confirmedByUser).toBe(false);
+    expect(result.draft.reagents[0].provenance.sourceType).toBe("imported_from_document");
+  }
+});

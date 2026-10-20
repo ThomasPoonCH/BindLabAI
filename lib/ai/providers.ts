@@ -1,3 +1,4 @@
+import "server-only";
 import { buildLabPrepPrompt } from "./prompts";
 import { labPrepGuideSchema, type LabPrepGuide, type LabPrepInput } from "./types";
 import { generateGeminiJson, getGeminiModelName } from "./gemini";

@@ -16,3 +16,5 @@ export function pipetteWarning(volumeUl: number) {
   if (volumeUl > 1000) return "Above 1000 uL. Use a serological/graduated pipette or split into multiple pipettings.";
   return null;
 }
+
+export function finiteResult(value: number) { if (!Number.isFinite(value)) throw new Error("Calculation is outside the supported numerical range. Reduce the scale or check units."); return value; }

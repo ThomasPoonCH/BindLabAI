@@ -50,6 +50,7 @@ export type ReactionPlan = {
 
 const positive = (value: number | null) => value !== null && Number.isFinite(value) && value > 0;
 const nonNegative = (value: number | null) => value === null || (Number.isFinite(value) && value >= 0);
+const finiteOrNull = (value: number) => Number.isFinite(value) && value >= 0 ? value : null;
 const unique = (items: string[]) => [...new Set(items)];
 export const formatNumber = (value: number, digits = 6) => Number(value.toPrecision(digits)).toString();
 
@@ -61,54 +62,56 @@ export function densityToGPerMl(value: number, unit: DensityUnit) { return unit 
 
 export function amountFromMass(massMg: number, molecularWeight: number) {
   if (!positive(massMg) || !positive(molecularWeight)) return null;
-  return massMg / molecularWeight * 1000;
+  return finiteOrNull(massMg / molecularWeight * 1000);
 }
 export function reagentAmount(referenceUmol: number, equivalents: number) {
   if (!positive(referenceUmol) || !nonNegative(equivalents)) return null;
-  return referenceUmol * equivalents;
+  return finiteOrNull(referenceUmol * equivalents);
 }
 export function massFromAmount(amountUmol: number, molecularWeight: number) {
   if (!nonNegative(amountUmol) || !positive(molecularWeight)) return null;
-  return amountUmol * molecularWeight / 1000;
+  return finiteOrNull(amountUmol * molecularWeight / 1000);
 }
 export function neatLiquidVolume(massMg: number, densityGPerMl: number) {
   if (!nonNegative(massMg) || !positive(densityGPerMl)) return null;
-  return massMg / densityGPerMl;
+  return finiteOrNull(massMg / densityGPerMl);
 }
 export function stockVolumeUl(amountUmol: number, concentrationM: number) {
   if (!nonNegative(amountUmol) || !positive(concentrationM)) return null;
-  return amountUmol / concentrationM;
+  return finiteOrNull(amountUmol / concentrationM);
 }
 export function solventVolumeMl(referenceUmol: number, concentrationM: number) {
   if (!positive(referenceUmol) || !positive(concentrationM)) return null;
-  return referenceUmol / (concentrationM * 1000);
+  return finiteOrNull(referenceUmol / (concentrationM * 1000));
 }
 export function actualConcentrationM(amountUmol: number, totalVolumeMl: number) {
   if (!nonNegative(amountUmol) || !positive(totalVolumeMl)) return null;
-  return amountUmol / (totalVolumeMl * 1000);
+  return finiteOrNull(amountUmol / (totalVolumeMl * 1000));
 }
 export function purityCorrectedMass(theoreticalMassMg: number, purityPercent: number | null) {
   if (purityPercent === null) return theoreticalMassMg;
   if (!positive(theoreticalMassMg) || !positive(purityPercent) || purityPercent > 100) return null;
-  return theoreticalMassMg / (purityPercent / 100);
+  return finiteOrNull(theoreticalMassMg / (purityPercent / 100));
 }
 
 function directAmount(row: CalculatorRow, errors: string[]) {
   if (!positive(row.inputValue) || !row.inputUnit) return null;
-  if (["nmol", "umol", "mmol", "mol"].includes(row.inputUnit)) return amountToUmol(row.inputValue!, row.inputUnit as AmountUnit);
+  if (row.purityPercent !== null && (!positive(row.purityPercent) || row.purityPercent > 100)) { errors.push("Reference purity must be greater than 0% and at most 100%."); return null; }
+  if (["nmol", "umol", "mmol", "mol"].includes(row.inputUnit)) return finiteOrNull(amountToUmol(row.inputValue!, row.inputUnit as AmountUnit));
   if (["ug", "mg", "g"].includes(row.inputUnit)) {
     if (!positive(row.molecularWeight)) { errors.push(`${row.name || "Reagent"}: MW unavailable until reagent identity is confirmed.`); return null; }
-    return amountFromMass(massToMg(row.inputValue!, row.inputUnit as MassUnit), row.molecularWeight!);
+    if (row.purityPercent !== null && (!positive(row.purityPercent) || row.purityPercent > 100)) { errors.push("Reference purity must be greater than 0% and at most 100%."); return null; }
+    return amountFromMass(massToMg(row.inputValue!, row.inputUnit as MassUnit) * (row.purityPercent === null ? 1 : row.purityPercent / 100), row.molecularWeight!);
   }
   if (["uL", "mL", "L"].includes(row.inputUnit)) {
     if (row.form === "stock_solution") {
       if (!positive(row.stockConcentration)) { errors.push(`${row.name || "Reagent"}: stock concentration is required.`); return null; }
-      return volumeToMl(row.inputValue!, row.inputUnit as VolumeUnit) * concentrationToM(row.stockConcentration!, row.stockConcentrationUnit) * 1000;
+      return finiteOrNull(volumeToMl(row.inputValue!, row.inputUnit as VolumeUnit) * concentrationToM(row.stockConcentration!, row.stockConcentrationUnit) * 1000);
     }
     if (!positive(row.density)) { errors.push(`${row.name || "Reagent"}: density is required for volume calculation.`); return null; }
     if (!positive(row.molecularWeight)) { errors.push(`${row.name || "Reagent"}: MW unavailable until reagent identity is confirmed.`); return null; }
     const massMg = volumeToMl(row.inputValue!, row.inputUnit as VolumeUnit) * densityToGPerMl(row.density!, row.densityUnit) * 1000;
-    return amountFromMass(massMg, row.molecularWeight!);
+    return amountFromMass(massMg * (row.purityPercent === null ? 1 : row.purityPercent / 100), row.molecularWeight!);
   }
   return null;
 }
@@ -145,7 +148,7 @@ export function calculateReactionPlan(rows: CalculatorRow[], targetConcentration
       }
     }
     if (row.isReference && amountUmol !== null && row.inputValue !== null && row.inputUnit && ["ug", "mg", "g"].includes(row.inputUnit) && row.molecularWeight) {
-      explanations.push({ label: `${row.name}: amount`, formula: "amount (umol) = mass (mg) / MW (g/mol) x 1000", substituted: `${formatNumber(massToMg(row.inputValue, row.inputUnit as MassUnit))} mg / ${row.molecularWeight} g/mol x 1000`, result: `${formatNumber(amountUmol)} umol` });
+      explanations.push({ label: `${row.name}: amount`, formula: "amount (umol) = mass (mg) x purity fraction / MW (g/mol) x 1000 (nominal if purity unspecified)", substituted: `${formatNumber(massToMg(row.inputValue, row.inputUnit as MassUnit))} mg x ${row.purityPercent === null ? "1 (nominal; purity unspecified)" : row.purityPercent / 100} / ${row.molecularWeight} g/mol x 1000`, result: `${formatNumber(amountUmol)} umol` });
     }
     const theoreticalMassMg = amountUmol !== null && positive(row.molecularWeight) ? massFromAmount(amountUmol, row.molecularWeight!) : null;
     if (amountUmol !== null && theoreticalMassMg === null && row.form !== "gas") rowErrors.push(`${row.name || "Reagent"}: MW unavailable until reagent identity is confirmed.`);
@@ -160,6 +163,9 @@ export function calculateReactionPlan(rows: CalculatorRow[], targetConcentration
     if (stockVolume !== null) explanations.push({ label: `${row.name}: stock volume`, formula: "volume (uL) = amount (umol) / concentration (M)", substituted: `${formatNumber(amountUmol!)} umol / ${formatNumber(concentrationToM(row.stockConcentration!, row.stockConcentrationUnit))} M`, result: `${formatNumber(stockVolume)} uL` });
     if (amountUmol !== null && amountUmol < 0.1) rowWarnings.push(`${row.name}: calculated amount is below 0.1 umol; confirm practical handling.`);
     if (liquidVolumeUl !== null && liquidVolumeUl < 1) rowWarnings.push(`${row.name}: calculated volume is below 1 uL; consider an intermediate stock.`);
+    if (row.purityPercent === null) rowWarnings.push(`${row.name}: purity not specified. Mass-derived amounts are nominal and masses are uncorrected for purity.`);
+    if (row.isReference && !positive(referenceAmountUmol)) rowErrors.push(`${row.name}: calculation is outside the supported range or required inputs are missing.`);
+    if (!row.isReference && referenceAmountUmol !== null && row.equivalents !== null && amountUmol === null) rowErrors.push(`${row.name}: calculated amount is outside the supported numerical range.`);
     errors.push(...rowErrors); warnings.push(...rowWarnings);
     return { ...row, amountUmol, actualConcentrationM: null, theoreticalMassMg, correctedMassMg, liquidVolumeUl, stockVolumeUl: stockVolume, errors: unique(rowErrors), warnings: unique(rowWarnings), explanations };
   });
@@ -172,6 +178,9 @@ export function calculateReactionPlan(rows: CalculatorRow[], targetConcentration
   if (concentrationBasisReagentId && !requestedBasis) warnings.push("The selected concentration-basis reagent is unavailable; the reference reagent is being used.");
   const basisAmountUmol = concentrationBasis?.amountUmol ?? null;
   const totalVolumeMl = basisAmountUmol !== null && concentrationM !== null ? solventVolumeMl(basisAmountUmol, concentrationM) : null;
+  if (basisAmountUmol !== null && concentrationM !== null && totalVolumeMl === null) errors.push("Reaction volume is outside the supported numerical range.");
+  const suppliedLiquidMl = calculatedRows.reduce((sum, row) => sum + (row.stockVolumeUl ?? row.liquidVolumeUl ?? 0) / 1000, 0);
+  if (totalVolumeMl !== null && suppliedLiquidMl > totalVolumeMl * (1 + 1e-12)) errors.push("Supplied stock and liquid reagent volumes exceed the target final reaction volume. Use a different concentration or scale; dilution cannot achieve this target.");
   const actual = basisAmountUmol !== null && totalVolumeMl !== null ? actualConcentrationM(basisAmountUmol, totalVolumeMl) : null;
   const rowsWithConcentrations = calculatedRows.map(row => ({
     ...row,

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isTrustedBrowserOrigin, normalizeOrigin, trustedBrowserOrigins } from "./http";
+import { isTrustedBrowserOrigin, MalformedJsonError, normalizeOrigin, readJsonWithLimit, trustedBrowserOrigins, UnsupportedContentTypeError } from "./http";
 
 const productionOrigin = "https://bindlabaihk.vercel.app";
 const previewOrigin = "https://bindlabai-git-security-thomas-projects.vercel.app";
@@ -25,6 +25,18 @@ describe("normalizeOrigin", () => {
     expect(normalizeOrigin("javascript:alert(1)")).toBeNull();
     expect(normalizeOrigin(`${productionOrigin}/api`)).toBeNull();
     expect(normalizeOrigin(`https://user:pass@bindlabaihk.vercel.app`)).toBeNull();
+  });
+});
+
+describe("bounded JSON input", () => {
+  it("requires application/json", async () => {
+    const input = new Request("https://server.invalid/api", { method: "POST", body: "{}" });
+    await expect(readJsonWithLimit(input, 100)).rejects.toBeInstanceOf(UnsupportedContentTypeError);
+  });
+
+  it("classifies malformed JSON without exposing parser details", async () => {
+    const input = new Request("https://server.invalid/api", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{" });
+    await expect(readJsonWithLimit(input, 100)).rejects.toBeInstanceOf(MalformedJsonError);
   });
 });
 

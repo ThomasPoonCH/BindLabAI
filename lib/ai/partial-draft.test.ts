@@ -30,3 +30,10 @@ describe("selectable PDF text fallback", () => {
     expect(draft.reagents.map((item) => item.name)).toEqual(["HATU"]);
   });
 });
+
+it("does not attach a later reagent quantity to an earlier reagent", () => {
+  const draft = buildDeterministicTextDraft("Combine HATU and DIPEA (2 equiv) in DMF (5 mL).");
+  expect(draft.reagents.find(r => r.name === "HATU")?.equivalents).toBeNull();
+  expect(draft.reagents.find(r => r.name === "DIPEA")?.equivalents).toBe(2);
+  expect(draft.reagents.find(r => r.name === "DMF")?.volume).toBe(5);
+});

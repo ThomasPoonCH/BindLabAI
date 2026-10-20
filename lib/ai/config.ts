@@ -1,3 +1,4 @@
+import "server-only";
 import { AiServiceError } from "./service-error";
 
 const placeholder = /^(your_|replace|changeme|example|placeholder|<)/i;

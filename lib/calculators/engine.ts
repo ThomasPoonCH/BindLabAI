@@ -18,10 +18,11 @@ export const unitGroups: { label: string; units: string[] }[] = [
 
 function valid(value: number, label: string) { if (!Number.isFinite(value) || value < 0) throw new Error(`${label} must be a non-negative finite number.`); }
 function definition(unit: string) { const item = unitDefinitions[unit]; if (!item) throw new Error(`Unsupported unit: ${unit}.`); return item; }
-export function compatibleUnits(from: string, to: string) { return definition(from).dimension === definition(to).dimension; }
+export function compatibleUnits(from: string, to: string) { return definition(from).dimension === definition(to).dimension && (definition(from).dimension !== "percent" || from === to); }
 
 export function convertUnits(value: number, from: string, to: string) {
   valid(value, "Value"); const source = definition(from); const target = definition(to);
+  if (source.dimension === "percent" && target.dimension === "percent" && from !== to) throw new Error("Percentage bases (w/w, w/v, v/v) require density or composition information and cannot be interchanged.");
   if (source.dimension !== target.dimension) {
     if ((source.dimension === "molar" && target.dimension === "mass_concentration") || (source.dimension === "mass_concentration" && target.dimension === "molar")) throw new Error("Cannot convert mass concentration to molar concentration without the compound's molecular weight.");
     throw new Error(`${from} and ${to} are incompatible dimensions.`);
@@ -42,6 +43,7 @@ export function molesFromMass(mass: number, massUnit: string, molecularWeight: n
 
 export function molarityFromAmount(amount: number, amountUnit: string, volume: number, volumeUnit: string) {
   const mol = convertUnits(amount, amountUnit, "mol").value; const liters = convertUnits(volume, volumeUnit, "L").value; if (!(liters > 0)) throw new Error("Volume must be greater than zero."); const result = mol / liters;
+  if (!Number.isFinite(result)) throw new Error("Calculation is outside the supported numerical range.");
   const crossCheck = (amount * unitDefinitions[amountUnit].factor) / (volume * unitDefinitions[volumeUnit].factor);
   if (Math.abs(result - crossCheck) > Math.max(1e-12, Math.abs(result) * 1e-12)) throw new Error("Internal cross-check failed. Result was not displayed.");
   return { valueM: result, steps: [`${formatRaw(amount)} ${amountUnit} = ${formatRaw(mol)} mol`, `${formatRaw(volume)} ${volumeUnit} = ${formatRaw(liters)} L`, `C = n / V = ${formatRaw(mol)} mol / ${formatRaw(liters)} L = ${formatRaw(result)} M`], formula: "C = n / V" };

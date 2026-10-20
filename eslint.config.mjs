@@ -8,6 +8,6 @@ const compat = new FlatCompat({
 export default [
   ...compat.extends("next/core-web-vitals"),
   {
-    ignores: [".next/**", "node_modules/**", "out/**", "dist/**"]
+    ignores: [".next/**", ".next-dev/**", "node_modules/**", "out/**", "dist/**"]
   }
 ];

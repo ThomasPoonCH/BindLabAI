@@ -23,7 +23,7 @@ describe("experiment calculation presentation", () => {
   });
   it("does not assume product stoichiometry", () => {
     expect(theoreticalProduct(record())).toBeNull();
-    const confirmed = record(); confirmed.productStoichiometry = 1;
+    const confirmed = record(); confirmed.productStoichiometry = 1; confirmed.fieldEvidence = { productStoichiometry: { status: "researcher_confirmed", sourceReference: null, sourceExcerpt: null, updatedAt: timestamp } };
     expect(theoreticalProduct(confirmed)?.amountUmol).toBeCloseTo(100, 8);
   });
   it("keeps imported evidence but derives the planned amount from equivalents", () => {
